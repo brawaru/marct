@@ -1,0 +1,6 @@
+_build
+
+# Microsoft Client ID
+xbox/client_id.txt
+
+.idea
