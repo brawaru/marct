@@ -1,4 +1,4 @@
-package json_helpers
+package sdtypes
 
 import (
 	"encoding/json"

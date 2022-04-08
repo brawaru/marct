@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+
 	"github.com/brawaru/marct/locales"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/urfave/cli/v2"
@@ -10,11 +11,11 @@ import (
 var testCmd = createCommand(&cli.Command{
 	Name: "test",
 	Usage: locales.Translate(&i18n.Message{
-		ID:    "commands.test.usage",
+		ID:    "command.test.usage",
 		Other: "Test",
 	}),
 	Description: locales.Translate(&i18n.Message{
-		ID:    "commands.test.description",
+		ID:    "command.test.description",
 		Other: "This command is used for internal testing",
 	}),
 	Flags: []cli.Flag{

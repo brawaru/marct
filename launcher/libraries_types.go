@@ -1,9 +1,10 @@
 package launcher
 
 import (
-	"github.com/brawaru/marct/maven"
 	"strconv"
 	"strings"
+
+	"github.com/brawaru/marct/maven"
 )
 
 type Artifact struct {
@@ -41,7 +42,12 @@ type Library struct {
 	Natives     map[string]string `json:"natives,omitempty"`
 }
 
+// GetMatchingNatives returns the natives matching the current running OS and arch.
 func (l *Library) GetMatchingNatives() *Artifact {
+	if l == nil {
+		panic("library is nil")
+	}
+
 	if l.Natives == nil || l.Downloads == nil || l.Downloads.Classifiers == nil {
 		return nil
 	}

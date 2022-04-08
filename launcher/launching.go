@@ -2,11 +2,6 @@ package launcher
 
 import (
 	"fmt"
-	"github.com/brawaru/marct/launcher/accounts"
-	"github.com/brawaru/marct/utils"
-	"github.com/brawaru/marct/utils/slices"
-	"github.com/brawaru/marct/validfile"
-	"github.com/google/shlex"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +9,12 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+
+	"github.com/brawaru/marct/launcher/accounts"
+	"github.com/brawaru/marct/utils"
+	"github.com/brawaru/marct/utils/slices"
+	"github.com/brawaru/marct/validfile"
+	"github.com/google/shlex"
 )
 
 const DefaultJVMArgs = "-Xmx2G -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M"
@@ -163,7 +164,11 @@ func (w *Instance) Launch(version Version, options LaunchOptions) (*LaunchResult
 		classPath = append(classPath, lp)
 	}
 
-	classPath = append(classPath, w.VersionFilePath(version.ID, "jar"))
+	path, err := w.VersionFilePath(version.ID, "jar")
+	if err != nil {
+		return nil, fmt.Errorf("path %q to version jar: %w", version.ID, err)
+	}
+	classPath = append(classPath, path)
 
 	gameDirectory := filepath.FromSlash(options.GameDirectory)
 
@@ -203,15 +208,13 @@ func (w *Instance) Launch(version Version, options LaunchOptions) (*LaunchResult
 	if version.Arguments != nil {
 		jvmArguments := version.Arguments.JVM
 
-		if jvmArguments != nil {
-			for _, argument := range jvmArguments {
-				if argument.Rules.MatchesExtensively(featSet) {
-					for _, s := range argument.Value {
-						if isBannedArgument(s) {
-							continue
-						}
-						jvmArgv = append(jvmArgv, s)
+		for _, argument := range jvmArguments {
+			if argument.Rules.MatchesExtensively(featSet) {
+				for _, s := range argument.Value {
+					if isBannedArgument(s) {
+						continue
 					}
+					jvmArgv = append(jvmArgv, s)
 				}
 			}
 		}
@@ -285,7 +288,7 @@ func (w *Instance) Launch(version Version, options LaunchOptions) (*LaunchResult
 		a, err := shlex.Split(s)
 
 		if err != nil {
-			return nil, fmt.Errorf("cannot parse JVM arguments %q: %w", options.JavaArgs, err)
+			return nil, fmt.Errorf("cannot parse JVM arguments %q: %w", *options.JavaArgs, err)
 		}
 
 		userArgv = a

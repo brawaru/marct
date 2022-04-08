@@ -3,25 +3,26 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
+	"regexp"
+	"strings"
+
 	"github.com/brawaru/marct/globstate"
 	"github.com/brawaru/marct/launcher"
 	locales "github.com/brawaru/marct/locales"
 	"github.com/imdario/mergo"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/urfave/cli/v2"
-	"os"
-	"regexp"
-	"strings"
 )
 
 var app = &cli.App{
 	Name: "marct",
 	Usage: locales.Translate(&i18n.Message{
-		ID:    "marct.command.usage",
+		ID:    "app.usage",
 		Other: "Minecraft architect tool",
 	}),
 	Description: locales.Translate(&i18n.Message{
-		ID: "marct.command.description",
+		ID: "app.description",
 		Other: `Minecraft architect tool. Manage your game with ease.
 
 It allows you to manage your game versions, install mod loaders, mods and mod packs.
@@ -32,7 +33,7 @@ Generally Marct tries to stay compatible with Minecraft Launcher, but no warrant
 		&cli.PathFlag{
 			Name: "workDir",
 			Usage: locales.Translate(&i18n.Message{
-				ID:    "marct.command.args.workDir",
+				ID:    "app.command.args.workDir",
 				Other: "Working directory",
 			}),
 			Value: ".",
@@ -41,7 +42,7 @@ Generally Marct tries to stay compatible with Minecraft Launcher, but no warrant
 			Name:    "verbose",
 			Aliases: []string{"v"},
 			Usage: locales.Translate(&i18n.Message{
-				ID:    "marct.command.args.verbose",
+				ID:    "app.command.args.verbose",
 				Other: "Use verbose logging",
 			}),
 			Value:       false,
@@ -59,7 +60,7 @@ Generally Marct tries to stay compatible with Minecraft Launcher, but no warrant
 			workDir = wd
 		} else {
 			return cli.Exit(locales.TranslateWith(&i18n.Message{
-				ID:    "command.version-download.err.workdir-init-err",
+				ID:    "app.error.workdir-init-err",
 				Other: "Cannot initialise working directory: {{ .Error }}",
 			}, map[string]string{
 				"Error": workDirErr.Error(),
@@ -76,7 +77,7 @@ Generally Marct tries to stay compatible with Minecraft Launcher, but no warrant
 
 		if err := workDir.Close(); err != nil {
 			return cli.Exit(locales.TranslateWith(&i18n.Message{
-				ID:    "command.version-download.err.workdir-close-err",
+				ID:    "app.error.workdir-close-err",
 				Other: "Cannot close working directory: {{ .Error }}",
 			}, map[string]string{
 				"Error": err.Error(),
@@ -152,55 +153,55 @@ func init() {
 
 	replacementsMap := map[string]string{
 		"name": locales.Translate(&i18n.Message{
-			ID:    "help.name",
+			ID:    "cli.help.name",
 			Other: "NAME",
 		}),
 		"usage": locales.Translate(&i18n.Message{
-			ID:    "help.usage",
+			ID:    "cli.help.usage",
 			Other: "USAGE",
 		}),
 		"description": locales.Translate(&i18n.Message{
-			ID:    "help.description",
+			ID:    "cli.help.description",
 			Other: "DESCRIPTION",
 		}),
 		"commands": locales.Translate(&i18n.Message{
-			ID:    "help.commands",
+			ID:    "cli.help.commands",
 			Other: "COMMANDS",
 		}),
 		"global_options": locales.Translate(&i18n.Message{
-			ID:    "help.global_options",
+			ID:    "cli.help.global_options",
 			Other: "GLOBAL OPTIONS",
 		}),
 		"copyright": locales.Translate(&i18n.Message{
-			ID:    "help.copyright",
+			ID:    "cli.help.copyright",
 			Other: "COPYRIGHT",
 		}),
 		"version": locales.Translate(&i18n.Message{
-			ID:    "help.version",
+			ID:    "cli.help.version",
 			Other: "VERSION",
 		}),
 		"args.global_options": locales.Translate(&i18n.Message{
-			ID:    "help.args.global_options",
+			ID:    "cli.help.args.global_options",
 			Other: "global options",
 		}),
 		"args.command": locales.Translate(&i18n.Message{
-			ID:    "help.args.command",
+			ID:    "cli.help.args.command",
 			Other: "command",
 		}),
 		"args.command_options": locales.Translate(&i18n.Message{
-			ID:    "help.args.command_options",
+			ID:    "cli.help.args.command_options",
 			Other: "command options",
 		}),
 		"args.rest": locales.Translate(&i18n.Message{
-			ID:    "help.args.rest",
+			ID:    "cli.help.args.rest",
 			Other: "arguments...",
 		}),
 		"category": locales.Translate(&i18n.Message{
-			ID:    "help.category",
+			ID:    "cli.help.category",
 			Other: "CATEGORY",
 		}),
 		"options": locales.Translate(&i18n.Message{
-			ID:    "help.options",
+			ID:    "cli.help.options",
 			Other: "OPTIONS",
 		}),
 	}

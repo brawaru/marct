@@ -2,11 +2,12 @@ package cmd
 
 import (
 	"errors"
+	"os"
+
 	"github.com/brawaru/marct/launcher"
 	"github.com/brawaru/marct/locales"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/urfave/cli/v2"
-	"os"
 )
 
 var utilsVirtualizeCommand = createCommand(&cli.Command{

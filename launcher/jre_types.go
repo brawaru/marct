@@ -1,8 +1,8 @@
 package launcher
 
 import (
-	"github.com/brawaru/marct/json_helpers"
 	"github.com/brawaru/marct/launcher/java"
+	"github.com/brawaru/marct/sdtypes"
 )
 
 type JavaVersionRecommendation struct {
@@ -22,8 +22,8 @@ type JavaManifest struct {
 }
 
 type JavaVersion struct {
-	Name     string                   `json:"name"`     // Full version of the JRE
-	Released json_helpers.RFC3339Time `json:"released"` // Time when the version was released
+	Name     string              `json:"name"`     // Full version of the JRE
+	Released sdtypes.RFC3339Time `json:"released"` // Time when the version was released
 }
 
 type JavaVersionDescriptor struct {
@@ -51,7 +51,7 @@ func (a JavaVersionDescriptors) MostRecent() (newest *JavaVersionDescriptor) {
 	return
 }
 
-func (a JavaVersionDescriptors) ByVersion(version string) *JavaVersionDescriptor {
+func (a JavaVersionDescriptors) Get(version string) *JavaVersionDescriptor {
 	if a == nil {
 		return nil
 	}

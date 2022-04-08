@@ -1,10 +1,11 @@
 package utils
 
 import (
+	"io"
+
 	"github.com/brawaru/marct/globstate"
 	"github.com/brawaru/marct/locales"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
-	"io"
 )
 
 func DClose(c io.Closer) {

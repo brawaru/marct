@@ -3,9 +3,10 @@ package launcher
 import (
 	_ "embed"
 	"encoding/json"
+	"testing"
+
 	"github.com/brawaru/marct/utils/slices"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 //go:embed test_assets/version_mc1.18.1.json
@@ -45,6 +46,4 @@ func TestMerge(t *testing.T) {
 	}
 
 	// TODO: add more checks of correct merging
-
-	return
 }

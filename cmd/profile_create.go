@@ -3,9 +3,9 @@ package cmd
 import (
 	"errors"
 	"github.com/AlecAivazis/survey/v2"
-	"github.com/brawaru/marct/json_helpers"
 	"github.com/brawaru/marct/launcher"
 	"github.com/brawaru/marct/locales"
+	"github.com/brawaru/marct/sdtypes"
 	"github.com/brawaru/marct/utils"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/urfave/cli/v2"
@@ -143,14 +143,14 @@ var profileCreateCommand = createCommand(&cli.Command{
 
 		var profile launcher.Profile
 
-		creationTime := json_helpers.ISOTime(time.Now())
+		creationTime := sdtypes.ISOTime(time.Now())
 
 		var icon = "Furnace"
 
 		profile = launcher.Profile{
 			Created:       &creationTime,
 			Icon:          &icon,
-			LastUsed:      json_helpers.ISOTime{},
+			LastUsed:      sdtypes.ISOTime{},
 			LastVersionID: "",
 			Name:          "",
 			Type:          "custom",

@@ -1,13 +1,14 @@
 package account
 
 import (
+	"testing"
+
 	"github.com/brawaru/marct/launcher/accounts"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestReadWrite(t *testing.T) {
-	account := accounts.Account{
+	account := &accounts.Account{
 		Type:     "any",
 		ID:       "owo",
 		AuthData: nil,
@@ -28,7 +29,7 @@ func TestReadWrite(t *testing.T) {
 
 	accountData.ID = "987654321"
 
-	writeErr := WriteProperties(&account, accountData)
+	writeErr := WriteProperties(account, accountData)
 	if !assert.NoError(t, writeErr, "must not error writing out data") {
 		return
 	}

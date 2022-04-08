@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/brawaru/marct/json_helpers"
+	"github.com/brawaru/marct/sdtypes"
 	"github.com/brawaru/marct/utils"
 	"github.com/relvacode/iso8601"
 	"io"
@@ -13,12 +13,7 @@ import (
 )
 
 func (w *Instance) ReadProfiles() (profiles *Profiles, err error) {
-	var bytes []byte
-	bytes, err = os.ReadFile(filepath.Join(w.Path, launcherProfilesPath))
-
-	if err == nil {
-		err = json.Unmarshal(bytes, &profiles)
-	}
+	err = unmarshalJSONFile(filepath.Join(w.Path, launcherProfilesPath), profiles)
 
 	return
 }
@@ -57,15 +52,15 @@ func initDefaultProfiles() *Profiles {
 				Type:          "latest-release",
 				LastVersionID: "latest-release",
 				Icon:          &releaseIcon,
-				Created:       (*json_helpers.ISOTime)(&defaultDate),
-				LastUsed:      json_helpers.ISOTime(defaultDate),
+				Created:       (*sdtypes.ISOTime)(&defaultDate),
+				LastUsed:      sdtypes.ISOTime(defaultDate),
 			},
 			utils.NewUUID(): {
 				Type:          "latest-snapshot",
 				LastVersionID: "latest-snapshot",
 				Icon:          &snapshotIcon,
-				Created:       (*json_helpers.ISOTime)(&defaultDate),
-				LastUsed:      json_helpers.ISOTime(defaultDate),
+				Created:       (*sdtypes.ISOTime)(&defaultDate),
+				LastUsed:      sdtypes.ISOTime(defaultDate),
 			},
 		},
 		Version: &version,

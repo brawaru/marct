@@ -1,8 +1,10 @@
 package launcher
 
 import (
-	"github.com/brawaru/marct/launcher/download"
+	"fmt"
 	"path/filepath"
+
+	"github.com/brawaru/marct/launcher/download"
 )
 
 func (w *Instance) LogConfigPath(logConfig LoggingConfiguration) string {
@@ -12,12 +14,8 @@ func (w *Instance) LogConfigPath(logConfig LoggingConfiguration) string {
 func (w *Instance) DownloadLogConfig(logConfig LoggingConfiguration) error {
 	dest := w.LogConfigPath(logConfig)
 
-	if dl, err := download.WithSHA1(logConfig.File.URL, dest, logConfig.File.SHA1); err == nil {
-		if dlErr := dl.Download(); dlErr != nil {
-			return dlErr
-		}
-	} else {
-		return err
+	if err := download.FromURL(logConfig.File.URL, dest, download.WithSHA1(logConfig.File.SHA1)); err != nil {
+		return fmt.Errorf("download %s to %q: %s", logConfig.File.URL, dest, err)
 	}
 
 	return nil

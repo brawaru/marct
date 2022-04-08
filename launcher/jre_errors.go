@@ -17,9 +17,10 @@ type JavaUnavailableError struct {
 }
 
 func (j *JavaUnavailableError) Error() (text string) {
-	if j.Errno == ErrSystemUnsupported {
+	switch j.Errno {
+	case ErrSystemUnsupported:
 		text = fmt.Sprintf("no runtimes support system \"%s\"", j.System)
-	} else if j.Errno == ErrVersionUnavailable {
+	case ErrVersionUnavailable:
 		text = fmt.Sprintf("version \"%s\" is not supported on system \"%s\"", j.Version, j.System)
 	}
 

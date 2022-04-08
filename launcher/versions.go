@@ -2,9 +2,11 @@ package launcher
 
 import (
 	"crypto/sha1"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"path/filepath"
+	"strings"
+
 	"github.com/brawaru/marct/globstate"
 	"github.com/brawaru/marct/launcher/download"
 	"github.com/brawaru/marct/locales"
@@ -12,27 +14,57 @@ import (
 	"github.com/brawaru/marct/utils/slices"
 	"github.com/brawaru/marct/validfile"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
-	"os"
-	"path/filepath"
 )
 
-func (w *Instance) VersionFolderPath(id string) string {
-	return filepath.Join(w.Path, "versions", id) // FIXME: non-sanitised input
+// badChars contains all characters that are not allowed in popular filesystems file names like NTFS, ext4, etc.
+var badChars = []rune{
+	'<',
+	'>',
+	':',
+	'"',
+	'/',
+	'\\',
+	'|',
+	'?',
+	'*',
 }
 
-func (w *Instance) VersionFilePath(id string, ext string) string {
-	return filepath.Join(w.VersionFolderPath(id), id+"."+ext) // FIXME: non-sanitised input
+func validateID(id string) error {
+	for _, c := range badChars {
+		if strings.ContainsRune(id, c) {
+			return fmt.Errorf("invalid character %U in version ID", c)
+		}
+	}
+
+	return nil
+}
+
+func (w *Instance) VersionFolderPath(id string) (string, error) {
+	if err := validateID(id); err != nil {
+		return "", err
+	}
+
+	return filepath.Join(w.Path, "versions", id), nil
+}
+
+func (w *Instance) VersionFilePath(id string, ext string) (string, error) {
+	f, err := w.VersionFolderPath(id)
+
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(f, id+"."+ext), nil
 }
 
 func (w *Instance) DownloadVersionFile(descriptor VersionDescriptor) error {
-	dest := w.VersionFilePath(descriptor.ID, "json")
+	dest, err := w.VersionFilePath(descriptor.ID, "json")
+	if err != nil {
+		return fmt.Errorf("create path for %s: %w", descriptor.ID, err)
+	}
 
-	if dl, err := download.WithSHA1(descriptor.URL, dest, descriptor.SHA1); err == nil {
-		if dlErr := dl.Download(); dlErr != nil {
-			return dlErr
-		}
-	} else {
-		return err
+	if err := download.FromURL(descriptor.URL, dest, download.WithSHA1(descriptor.SHA1)); err != nil {
+		return fmt.Errorf("download %q to %q: %w", descriptor.URL, dest, err)
 	}
 
 	if globstate.VerboseLogs {
@@ -50,20 +82,14 @@ func (w *Instance) DownloadVersionFile(descriptor VersionDescriptor) error {
 	return nil
 }
 
-func (w *Instance) ReadVersionFile(id string) (*Version, error) {
-	contents, readErr := os.ReadFile(w.VersionFilePath(id, "json"))
-
-	if readErr != nil {
-		return nil, readErr
+func (w *Instance) ReadVersionFile(id string) (v *Version, err error) {
+	if path, e := w.VersionFilePath(id, "json"); e == nil {
+		err = unmarshalJSONFile(path, v)
+	} else {
+		err = fmt.Errorf("path version file %q: %w", id, e)
 	}
 
-	var v Version
-
-	if err := json.Unmarshal(contents, &v); err != nil {
-		return nil, err
-	}
-
-	return &v, nil
+	return
 }
 
 func (w *Instance) ReadVersionWithInherits(id string) (*Version, error) {
@@ -145,7 +171,10 @@ func (w *Instance) downloadClientJar(versionFile Version) error {
 		return &DownloadUnavailableError{"client"}
 	}
 
-	clientJarPath := w.VersionFilePath(versionFile.ID, "jar")
+	clientJarPath, err := w.VersionFilePath(versionFile.ID, "jar")
+	if err != nil {
+		return fmt.Errorf("cannot get path for client JAR: %w", err)
+	}
 
 	shouldDownload := false
 

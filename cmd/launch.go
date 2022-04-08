@@ -2,6 +2,9 @@ package cmd
 
 import (
 	"errors"
+	"path/filepath"
+	"strings"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/brawaru/marct/launcher"
 	"github.com/brawaru/marct/locales"
@@ -10,8 +13,6 @@ import (
 	xboxAuthFlow "github.com/brawaru/marct/xbox/authflow"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/urfave/cli/v2"
-	"path/filepath"
-	"strings"
 )
 
 var launchCommand = createCommand(&cli.Command{
@@ -30,9 +31,9 @@ var launchCommand = createCommand(&cli.Command{
 	}),
 	Flags: nil,
 	Action: func(ctx *cli.Context) error {
-		workDir := ctx.Context.Value("workDir").(*launcher.Instance)
+		instance := ctx.Context.Value("workDir").(*launcher.Instance)
 
-		profiles, err := workDir.ReadProfiles()
+		profiles, err := instance.ReadProfiles()
 		if err != nil {
 			return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
 				TemplateData: map[string]string{
@@ -45,7 +46,7 @@ var launchCommand = createCommand(&cli.Command{
 			}), 1)
 		}
 
-		accountsStore, err := workDir.OpenAccountsStore()
+		accountsStore, err := instance.OpenAccountsStore()
 
 		utils.DClose(accountsStore) // we won't be making any changes so closing the file immediately
 
@@ -149,18 +150,10 @@ var launchCommand = createCommand(&cli.Command{
 
 		switch selectedAccount.Type {
 		case "xbox":
-			k, err := workDir.OpenKeyring(keyringOpenPrompt)
+			k, err := keyringOpenFlow(instance)
 
 			if err != nil {
-				return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
-					TemplateData: map[string]string{
-						"Error": err.Error(),
-					},
-					DefaultMessage: &i18n.Message{
-						ID:    "command.launch.error.keyring-open-failed",
-						Other: "Failed to open keyring: {{ .Error }}",
-					},
-				}), 1)
+				return err
 			}
 
 			authFlow := xboxAuthFlow.CreateAuthFlow(&xboxAuthFlow.Options{
@@ -236,7 +229,7 @@ var launchCommand = createCommand(&cli.Command{
 			}), 1)
 		}
 
-		version, err := workDir.ReadVersionWithInherits(profile.LastVersionID)
+		version, err := instance.ReadVersionWithInherits(profile.LastVersionID)
 		if err != nil {
 			return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
 				TemplateData: map[string]string{
@@ -254,12 +247,12 @@ var launchCommand = createCommand(&cli.Command{
 			javaPath = *profile.JavaPath
 		}
 
-		if lr, err := workDir.Launch(*version, launcher.LaunchOptions{
+		if lr, err := instance.Launch(*version, launcher.LaunchOptions{
 			Background:    ctx.Bool("background"),
 			JavaPath:      javaPath,
 			Resolution:    profile.Resolution,
 			Authorization: *selectedAccount.Authorization,
-			GameDirectory: filepath.Join(workDir.Path, filepath.FromSlash(profile.GameDir)), // MCL compat: no sanitization
+			GameDirectory: filepath.Join(instance.Path, filepath.FromSlash(profile.GameDir)), // MCL compat: no sanitization
 			JavaArgs:      profile.JavaArgs,
 		}); err != nil {
 			return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{

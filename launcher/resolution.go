@@ -60,9 +60,6 @@ type AspectRatio struct {
 // CalculateMissingSides calculates sizes for missing sides of resolution given the aspect ratio.
 // If both sides are missing, then returns the initial value.
 func (r *Resolution) CalculateMissingSides(ratio AspectRatio) (res Resolution) {
-	res.Width = r.Width
-	res.Height = r.Height
-
 	if r != nil {
 		if r.Width > 0 {
 			res.Height = ratio.Height * (r.Width / ratio.Width)

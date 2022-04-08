@@ -1,14 +1,13 @@
 package launcher
 
 import (
-	"encoding/json"
+	"path/filepath"
+
 	"github.com/brawaru/marct/globstate"
 	"github.com/brawaru/marct/launcher/download"
 	"github.com/brawaru/marct/locales"
 	"github.com/brawaru/marct/utils/terrgroup"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
-	"os"
-	"path/filepath"
 )
 
 func (w *Instance) AssetIndexPath(id string) string {
@@ -33,52 +32,32 @@ func (w *Instance) DefaultAssetsObjectResolver() AssetPathResolver {
 func (w *Instance) DownloadAssetIndex(descriptor AssetIndexDescriptor) error {
 	dest := w.AssetIndexPath(descriptor.ID)
 
-	if dl, err := download.WithSHA1(descriptor.URL, dest, descriptor.SHA1); err == nil {
-		if dlErr := dl.Download(); dlErr != nil {
-			return dlErr
-		}
-	} else {
+	if err := download.FromURL(descriptor.URL, dest, download.WithSHA1(descriptor.SHA1)); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (w *Instance) ReadAssetIndex(id string) (*AssetIndex, error) {
-	fp := w.AssetIndexPath(id)
+func (w *Instance) ReadAssetIndex(id string) (i *AssetIndex, err error) {
+	err = unmarshalJSONFile(w.AssetIndexPath(id), i)
 
-	var i AssetIndex
-
-	bytes, readErr := os.ReadFile(fp)
-
-	if readErr != nil {
-		return nil, readErr
-	}
-
-	if unmarshalErr := json.Unmarshal(bytes, &i); unmarshalErr != nil {
-		return nil, unmarshalErr
-	}
-
-	return &i, nil
+	return
 }
 
 func (w *Instance) DownloadAssets(index AssetIndex) error {
 	op := w.AssetsObjectsPath()
 	g, _ := terrgroup.New(8)
 
-	for n, asset := range index.Objects {
+	for n, a := range index.Objects {
 		// Clone variables, so they don't change in async execution later
 		name := n
-		a := asset
+		asset := a
 
 		g.Go(func() error {
-			p := filepath.Join(op, filepath.FromSlash(a.Path()))
+			p := filepath.Join(op, filepath.FromSlash(asset.Path()))
 
-			if dl, err := download.WithSHA1(a.URL(), p, a.Hash); err == nil {
-				if dlErr := dl.Download(); dlErr != nil {
-					return dlErr
-				}
-			} else {
+			if err := download.FromURL(asset.URL(), p, download.WithSHA1(asset.Hash)); err != nil {
 				return err
 			}
 
@@ -86,7 +65,7 @@ func (w *Instance) DownloadAssets(index AssetIndex) error {
 				println(locales.TranslateUsing(&i18n.LocalizeConfig{
 					TemplateData: map[string]string{
 						"Asset": name,
-						"ID":    a.Hash,
+						"ID":    asset.Hash,
 					},
 					DefaultMessage: &i18n.Message{
 						ID:    "log.verbose.downloaded-asset",

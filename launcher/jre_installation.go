@@ -5,38 +5,39 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/brawaru/marct/launcher/download"
-	"github.com/brawaru/marct/launcher/java"
-	"github.com/brawaru/marct/utils"
-	"github.com/brawaru/marct/validfile"
-	"github.com/itchio/lzma"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"runtime"
+
+	"github.com/brawaru/marct/launcher/download"
+	"github.com/brawaru/marct/launcher/java"
+	"github.com/brawaru/marct/utils"
+	"github.com/brawaru/marct/validfile"
+	"github.com/itchio/lzma"
 )
 
-// an enum of file download states
+// FileState represents the state of a file.
 type FileState int
 
 const (
-	FileStateUnknown       FileState = iota // File has not yet been checked
-	FileStateNotDownloaded                  // File has not yet been downloaded
-	FileStateCorrupted                      // File is corrupted and must be deleted
-	FileStateDownloaded                     // File is downloaded and ready to be mapped
-	FileStateReady                          // File is mapped and ready
+	FileStateUnknown       FileState = iota // File has not yet been checked.
+	FileStateNotDownloaded                  // File has not yet been downloaded.
+	FileStateCorrupted                      // File is corrupted and must be deleted.
+	FileStateDownloaded                     // File is downloaded and ready to be mapped.
+	FileStateReady                          // File is mapped and ready.
 )
 
 type JREObject struct {
-	JavaFile                    // File to download
-	Destination       string    // Where the object is stored
-	ObjectDestination string    // Where the unmapped object is stored
-	State             FileState // State of the file
-	IsRaw             bool      // Whether the file stores is raw or compressed
+	JavaFile                    // File to download.
+	Destination       string    // Where the object is stored.
+	ObjectDestination string    // Where the unmapped object is stored.
+	State             FileState // State of the file.
+	IsRaw             bool      // Whether the file stores is raw or compressed.
 }
 
-type JreInstallation struct {
+type JREInstallation struct {
 	Classifier string
 	Selector   string
 	Descriptor *JavaVersionDescriptor
@@ -48,11 +49,11 @@ type JreInstallation struct {
 	filesPath   string                // Path to the files' directory where the final files are stored
 }
 
-func NewInstallation(classifier string, selector string, descriptor *JavaVersionDescriptor, path string) *JreInstallation {
+func NewInstallation(classifier string, selector string, descriptor *JavaVersionDescriptor, path string) *JREInstallation {
 	stagingPath := filepath.Join(path, classifier+"_staging")
 	filesPath := filepath.Join(path, classifier)
 
-	return &JreInstallation{
+	return &JREInstallation{
 		Classifier:  classifier,
 		Selector:    selector,
 		Descriptor:  descriptor,
@@ -63,31 +64,27 @@ func NewInstallation(classifier string, selector string, descriptor *JavaVersion
 	}
 }
 
-func (i *JreInstallation) fetchManifest() error {
+func (i *JREInstallation) fetchManifest() error {
 	if i.Descriptor == nil {
 		return errors.New("descriptor is nil")
 	}
 
-	manifestPath := filepath.Join(i.Path, ".manifest")
+	dest := filepath.Join(i.Path, ".manifest")
 
-	if dl, err := download.WithSHA1(i.Descriptor.Manifest.URL, manifestPath, i.Descriptor.Manifest.SHA1); err == nil {
-		if dlErr := dl.Download(); dlErr != nil {
-			return fmt.Errorf("failed to download manifest: %w", dlErr)
-		}
-	} else {
-		return fmt.Errorf("cannot create download: %w", err)
+	if err := download.FromURL(i.Descriptor.Manifest.URL, dest, download.WithSHA1(i.Descriptor.Manifest.SHA1)); err != nil {
+		return fmt.Errorf("download %q to %q: %w", i.Descriptor.Manifest.URL, dest, err)
 	}
 
-	if manifestBytes, manifestReadErr := os.ReadFile(manifestPath); manifestReadErr != nil {
-		return fmt.Errorf("could not read manifest file: %w", manifestReadErr)
-	} else if manifestUnmarshalErr := json.Unmarshal(manifestBytes, &i.Manifest); manifestUnmarshalErr != nil {
-		return fmt.Errorf("could not unmarshal manifest file: %w", manifestUnmarshalErr)
+	if bytes, err := os.ReadFile(dest); err != nil {
+		return fmt.Errorf("read manifest file %q: %w", dest, err)
+	} else if err := json.Unmarshal(bytes, &i.Manifest); err != nil {
+		return fmt.Errorf("unmarshal manifest file %q: %w", dest, err)
 	}
 
 	return nil
 }
 
-func (i *JreInstallation) prepareObjects() error {
+func (i *JREInstallation) prepareObjects() error {
 	if i.Manifest == nil {
 		return errors.New("manifest is nil")
 	}
@@ -105,7 +102,7 @@ func (i *JreInstallation) prepareObjects() error {
 	return nil
 }
 
-func (i *JreInstallation) validateObject(fp string, object *JREObject) error {
+func (i *JREInstallation) validateObject(fp string, object *JREObject) error {
 	state := FileStateNotDownloaded
 
 	switch object.Type {
@@ -184,7 +181,7 @@ func (i *JreInstallation) validateObject(fp string, object *JREObject) error {
 	return nil
 }
 
-func (i *JreInstallation) validateObjects() (bool, error) {
+func (i *JREInstallation) validateObjects() (bool, error) {
 	success := true
 
 	for fp, object := range i.objects {
@@ -200,7 +197,7 @@ func (i *JreInstallation) validateObjects() (bool, error) {
 	return success, nil
 }
 
-func (i *JreInstallation) deleteCorrupted() error {
+func (i *JREInstallation) deleteCorrupted() error {
 	for _, object := range i.objects {
 		if object.State == FileStateCorrupted {
 			if err := os.RemoveAll(object.Destination); err != nil {
@@ -212,7 +209,7 @@ func (i *JreInstallation) deleteCorrupted() error {
 	return nil
 }
 
-func (i *JreInstallation) downloadFiles() error {
+func (i *JREInstallation) downloadFiles() error {
 	for fp, object := range i.objects {
 		if !object.Type.IsFile() {
 			continue
@@ -233,12 +230,8 @@ func (i *JreInstallation) downloadFiles() error {
 
 		dest := filepath.Join(i.stagingPath, objectDl.SHA1)
 
-		if dl, err := download.WithSHA1(objectDl.URL, dest, objectDl.SHA1); err == nil {
-			if dlErr := dl.Download(); dlErr != nil {
-				return dlErr
-			}
-		} else {
-			return err
+		if err := download.FromURL(objectDl.URL, dest, download.WithSHA1(objectDl.SHA1)); err != nil {
+			return fmt.Errorf("download %q to %q: %w", objectDl.URL, fp, err)
 		}
 
 		object.IsRaw = isRaw
@@ -249,7 +242,7 @@ func (i *JreInstallation) downloadFiles() error {
 	return nil
 }
 
-func (i *JreInstallation) mapDir(_ string, object *JREObject) error {
+func (i *JREInstallation) mapDir(_ string, object *JREObject) error {
 	if mdErr := os.MkdirAll(object.Destination, 0755); mdErr != nil {
 		return fmt.Errorf("cannot create directory %q: %w", object.Destination, mdErr)
 	}
@@ -257,7 +250,7 @@ func (i *JreInstallation) mapDir(_ string, object *JREObject) error {
 	return nil
 }
 
-func (i *JreInstallation) mapLink(fp string, object *JREObject) error {
+func (i *JREInstallation) mapLink(fp string, object *JREObject) error {
 	tfp := path.Clean(path.Join(path.Dir(fp), object.Target))
 
 	target, exists := i.objects[tfp]
@@ -290,7 +283,7 @@ func (i *JreInstallation) mapLink(fp string, object *JREObject) error {
 	return nil
 }
 
-func (i *JreInstallation) mapFile(_ string, object *JREObject) error {
+func (i *JREInstallation) mapFile(_ string, object *JREObject) error {
 	if dir := filepath.Dir(object.Destination); dir != "." {
 		if mkdirErr := os.MkdirAll(dir, 0755); mkdirErr != nil {
 			return fmt.Errorf("cannot create parent directories for %q: %w", object.Destination, mkdirErr)
@@ -337,7 +330,7 @@ func (i *JreInstallation) mapFile(_ string, object *JREObject) error {
 	return nil
 }
 
-func (i *JreInstallation) mapObject(fp string, object *JREObject) error {
+func (i *JREInstallation) mapObject(fp string, object *JREObject) error {
 	if object.State == FileStateReady {
 		return nil
 	}
@@ -362,7 +355,7 @@ func (i *JreInstallation) mapObject(fp string, object *JREObject) error {
 	return nil
 }
 
-func (i *JreInstallation) mapObjects() error {
+func (i *JREInstallation) mapObjects() error {
 	for fp, object := range i.objects {
 		if err := i.mapObject(fp, object); err != nil {
 			return fmt.Errorf("cannot map %q: %w", fp, err)
@@ -372,7 +365,7 @@ func (i *JreInstallation) mapObjects() error {
 	return nil
 }
 
-func (i *JreInstallation) deleteStaging() error {
+func (i *JREInstallation) deleteStaging() error {
 	if err := os.RemoveAll(i.stagingPath); err != nil {
 		return fmt.Errorf("cannot delete staging directory %q: %w", i.stagingPath, err)
 	}
@@ -380,7 +373,7 @@ func (i *JreInstallation) deleteStaging() error {
 	return nil
 }
 
-func (i *JreInstallation) writeVersion() error {
+func (i *JREInstallation) writeVersion() error {
 	versionFile, createErr := os.Create(filepath.Join(i.Path, ".version"))
 
 	if createErr == nil {
@@ -402,7 +395,7 @@ func (p *PostValidationError) Error() string {
 	return fmt.Sprintf("%d objects failed post-validation", len(p.BadObjects))
 }
 
-func (i *JreInstallation) Install() error {
+func (i *JREInstallation) Install() error {
 	// 0. fetch manifest
 	if i.Manifest == nil {
 		if err := i.fetchManifest(); err != nil {

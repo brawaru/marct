@@ -3,11 +3,12 @@ package launcher
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/brawaru/marct/network"
-	"github.com/brawaru/marct/validfile"
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"github.com/brawaru/marct/network"
+	"github.com/brawaru/marct/validfile"
 )
 
 // linux (x64) => linux
@@ -97,15 +98,6 @@ func (w *Instance) jreRuntimesPath() string {
 
 func (w *Instance) JREPath(version string, selector string) string {
 	return filepath.Join(w.jreRuntimesPath(), version, selector)
-}
-
-func (w *Instance) jreFilesPath(version string, selector string, staging bool) string {
-	tail := version
-	if staging {
-		tail += "_staging"
-	}
-
-	return filepath.Join(w.JREPath(version, selector), tail)
 }
 
 func (w *Instance) InstallJRE(runtimes JavaRuntimesMap, version string) error {

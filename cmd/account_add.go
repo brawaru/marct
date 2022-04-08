@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+
 	"github.com/99designs/keyring"
 	"github.com/brawaru/marct/launcher"
 	"github.com/brawaru/marct/launcher/accounts"
@@ -44,19 +45,11 @@ var accountAddMicrosoftCommand = createCommand(&cli.Command{
 		Other: "Allows to set up a new Microsoft account.",
 	}),
 	Action: func(ctx *cli.Context) error {
-		workDir := ctx.Context.Value("workDir").(*launcher.Instance)
+		instance := ctx.Context.Value("workDir").(*launcher.Instance)
 
-		k, keyringOpenErr := workDir.OpenKeyring(keyringOpenPrompt)
-		if keyringOpenErr != nil {
-			return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
-				TemplateData: map[string]string{
-					"Error": keyringOpenErr.Error(),
-				},
-				DefaultMessage: &i18n.Message{
-					ID:    "command.accounts-add-microsoft.error.keyring-open-error",
-					Other: "Cannot open your keyring: {{ .Error }}",
-				},
-			}), 1)
+		k, err := keyringOpenFlow(instance)
+		if err != nil {
+			return err
 		}
 
 		accountKey, keyCreateErr := xboxAccount.RandomKey()
@@ -90,7 +83,7 @@ var accountAddMicrosoftCommand = createCommand(&cli.Command{
 		//	}), 1)
 		//}
 
-		accountsStore, openErr := workDir.OpenAccountsStore()
+		accountsStore, openErr := instance.OpenAccountsStore()
 
 		if openErr != nil {
 			return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{

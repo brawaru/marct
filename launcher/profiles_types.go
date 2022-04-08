@@ -2,14 +2,14 @@ package launcher
 
 import (
 	"github.com/brawaru/marct/j2n"
-	"github.com/brawaru/marct/json_helpers"
+	"github.com/brawaru/marct/sdtypes"
 )
 
 type Profile struct {
 	// Date and time when the profile is created
 	//
 	// MCL compatibility: MCL does not care if this field is absent or null
-	Created *json_helpers.ISOTime `json:"created,omitempty"`
+	Created *sdtypes.ISOTime `json:"created,omitempty"`
 	// Icon used for the profile: either launcher asset name or data:// URI
 	//
 	// MCL compatibility: MCL does not care if this field is absent or null (uses Furnace instead)
@@ -17,7 +17,7 @@ type Profile struct {
 	// Date and time when this profile was last used
 	//
 	// MCL compatibility: MCL will reset this field if absent or null
-	LastUsed json_helpers.ISOTime `json:"lastUsed"`
+	LastUsed sdtypes.ISOTime `json:"lastUsed"`
 	// Version used by this profile
 	//
 	// MCL compatibility: MCL will ignore and delete profile if this field is absent or null

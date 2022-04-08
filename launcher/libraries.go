@@ -1,23 +1,25 @@
 package launcher
 
 import (
+	"fmt"
+	"net/url"
+	"os"
+	"path/filepath"
+
 	"github.com/brawaru/marct/globstate"
 	"github.com/brawaru/marct/launcher/download"
 	"github.com/brawaru/marct/locales"
 	"github.com/brawaru/marct/maven"
 	"github.com/brawaru/marct/utils/terrgroup"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
-	"net/url"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
+// LibrariesPath returns expected path for the libraries to be placed in.
 func (w *Instance) LibrariesPath() string {
 	return filepath.Join(w.Path, "libraries")
 }
 
-// LibraryPath returns expected path for the library to be placed in
+// LibraryPath returns expected path for the library to be placed in.
 func (w *Instance) LibraryPath(coords maven.Coordinates) string {
 	return filepath.Join(w.Path, coords.Path(os.PathSeparator))
 }
@@ -27,10 +29,6 @@ func hasEmptyPath(u url.URL) bool {
 }
 
 func (w *Instance) DownloadLibrary(library *Library) error {
-	// if it has artifact, download it
-	// else check the name field
-	// also download natives
-
 	if library.URL != nil || library.Downloads == nil {
 		dlPath := w.LibraryPath(library.Coordinates)
 
@@ -51,36 +49,26 @@ func (w *Instance) DownloadLibrary(library *Library) error {
 			src.Path = library.Coordinates.Path('/')
 		}
 
-		if dlErr := download.WithRemoteHashesURL(*src, dlPath).Download(); dlErr != nil {
-			return dlErr
+		if err := download.From(src, dlPath, download.WithRemoteSHA1(), download.WithRemoteMD5()); err != nil {
+			return fmt.Errorf("download %s: %s", dlPath, err)
 		}
 	} else {
 		artifact := library.Downloads.Artifact
 
 		if artifact != nil {
-			dest := strings.ReplaceAll(artifact.Path, "/", string(os.PathSeparator))
-			dest = filepath.Join(w.LibrariesPath(), dest)
+			dest := filepath.Join(w.LibrariesPath(), filepath.FromSlash(artifact.Path))
 
-			if dl, err := download.WithSHA1(artifact.URL, dest, artifact.SHA1); err == nil {
-				if dlErr := dl.Download(); dlErr != nil {
-					return dlErr
-				}
-			} else {
-				return err
+			if err := download.FromURL(artifact.URL, dest, download.WithSHA1(artifact.SHA1)); err != nil {
+				return fmt.Errorf("download %s: %s", artifact.URL, err)
 			}
 		}
 	}
 
 	if natives := library.GetMatchingNatives(); natives != nil {
-		dest := strings.ReplaceAll(natives.Path, "/", string(os.PathSeparator))
-		dest = filepath.Join(w.LibrariesPath(), dest)
+		dest := filepath.Join(w.LibrariesPath(), filepath.FromSlash(natives.Path))
 
-		if dl, err := download.WithSHA1(natives.URL, dest, natives.SHA1); err == nil {
-			if dlErr := dl.Download(); dlErr != nil {
-				return dlErr
-			}
-		} else {
-			return err
+		if err := download.FromURL(natives.URL, dest, download.WithSHA1(natives.SHA1)); err != nil {
+			return fmt.Errorf("download native %s: %s", natives.URL, err)
 		}
 	}
 
