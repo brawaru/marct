@@ -2,9 +2,10 @@ package authflow
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/brawaru/marct/launcher/accounts"
 	"github.com/brawaru/marct/xbox"
-	"time"
 )
 
 // DeviceAuthHandler is a function that consumes device authorisation request and returns any errors with handling it.

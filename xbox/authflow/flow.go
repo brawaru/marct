@@ -16,10 +16,10 @@ type Options struct {
 
 type IntermediateState struct {
 	*xboxAccount.AuthData
-	key                        []byte
-	XboxAccountProperties      *xboxAccount.Properties
-	MinecraftAccountProperties *minecraftAccount.Properties
-	MsftTokenRefreshed         bool // Whether Microsoft token has been refreshed, requiring steps relying on it to also refresh their tokens.
+	key                        []byte                       // Key used to encrypt or decrypt account data.
+	XboxAccountProperties      *xboxAccount.Properties      // Properties of the Xbox account.
+	MinecraftAccountProperties *minecraftAccount.Properties // Properties of the Minecraft account.
+	MsftTokenRefreshed         bool                         // Whether Microsoft token has been refreshed, requiring steps relying on it to also refresh their tokens.
 }
 
 func CreateAuthFlow(options *Options) *accounts.AuthFlow[IntermediateState] {

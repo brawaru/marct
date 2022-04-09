@@ -2,12 +2,13 @@ package account
 
 import (
 	"errors"
+
 	"github.com/brawaru/marct/launcher/accounts"
 	"github.com/mitchellh/mapstructure"
 )
 
 type Properties struct {
-	KID string `mapstructure:"xbox:kid"`
+	KID string `mapstructure:"xbox:kid"` // Key identifier in the keyring.
 }
 
 var ErrNilAccount = errors.New("account is nil")

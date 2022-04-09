@@ -8,19 +8,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/brawaru/marct/launcher/accounts"
 	"time"
+
+	"github.com/brawaru/marct/launcher/accounts"
 )
 
+// AuthData stores the authentication data for Xbox Minecraft account.
 type AuthData struct {
-	MsftAccessToken          string    `json:"msftAccessToken"`
-	MsftRefreshToken         string    `json:"msftRefreshToken"`
-	MsftAccessTokenExpiresAt time.Time `json:"msftAccessTokenExpiresAt"`
-	XBLToken                 string    `json:"xblToken"`
-	UserHash                 string    `json:"userHash"`
-	XSTSToken                string    `json:"xstsToken"`
-	MinecraftToken           string    `json:"minecraftToken"`
-	MinecraftTokenExpiresAt  time.Time `json:"minecraftAccessTokenExpiresAt"`
+	MsftAccessToken          string    `json:"msftAccessToken"`               // Microsoft access token used to access Xbox services.
+	MsftRefreshToken         string    `json:"msftRefreshToken"`              // Microsoft refresh token used to refresh access token after it has expired.
+	MsftAccessTokenExpiresAt time.Time `json:"msftAccessTokenExpiresAt"`      // Time after which Microsoft token should be considered expired.
+	XBLToken                 string    `json:"xblToken"`                      // Xbox Live token.
+	UserHash                 string    `json:"userHash"`                      // Xbox Live user hash.
+	XSTSToken                string    `json:"xstsToken"`                     // Xbox Live Token Service token.
+	MinecraftToken           string    `json:"minecraftToken"`                // Minecraft token used to call Minecraft APIs and to log in into the game.
+	MinecraftTokenExpiresAt  time.Time `json:"minecraftAccessTokenExpiresAt"` // Time after which Minecraft token should be considered expired.
 }
 
 func createAESGCM(key []byte) (cipher.AEAD, error) {
