@@ -46,6 +46,52 @@ var launchCommand = createCommand(&cli.Command{
 			}), 1)
 		}
 
+		var profile launcher.Profile
+		if ctx.NArg() == 0 {
+			if profiles.SelectedProfile != nil {
+				i := *profiles.SelectedProfile
+				p, ok := profiles.Profiles[i]
+				if !ok {
+					return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
+						TemplateData: map[string]string{
+							"Name": i,
+						},
+						DefaultMessage: &i18n.Message{
+							ID: "command.launch.error.default-profile-not-found",
+							Other: "Selected profile \"{{ .Name }}\" is missing." +
+								" Select existing profile or specify profile to launch via argument.",
+						},
+					}), 1)
+				}
+				profile = p
+			} else {
+				return cli.Exit(locales.Translate(&i18n.Message{
+					ID:    "command.launch.error.no-selected-profile",
+					Other: "No profile selected to launch",
+				}), 1)
+			}
+		} else if ctx.NArg() == 1 {
+			i := ctx.Args().First()
+			p, ok := profiles.Profiles[i]
+			if !ok {
+				return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
+					TemplateData: map[string]string{
+						"Name": i,
+					},
+					DefaultMessage: &i18n.Message{
+						ID:    "command.launch.error.invalid-profile-specified",
+						Other: "Profile \"{{ .Name }}\" does not exist.",
+					},
+				}), 1)
+			}
+			profile = p
+		} else {
+			return cli.Exit(locales.Translate(&i18n.Message{
+				ID:    "command.launch.error.invalid-args-number",
+				Other: "Invalid number of arguments",
+			}), 1)
+		}
+
 		accountsStore, err := instance.OpenAccountsStore()
 
 		utils.DClose(accountsStore) // we won't be making any changes so closing the file immediately
@@ -180,52 +226,6 @@ var launchCommand = createCommand(&cli.Command{
 					ID:    "command.launch.error.account-type-not-supported",
 					Other: "Account type {{ .AccountType }} is not supported.",
 				},
-			}), 1)
-		}
-
-		var profile launcher.Profile
-		if ctx.NArg() == 0 {
-			if profiles.SelectedProfile != nil {
-				i := *profiles.SelectedProfile
-				p, ok := profiles.Profiles[i]
-				if !ok {
-					return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
-						TemplateData: map[string]string{
-							"Name": i,
-						},
-						DefaultMessage: &i18n.Message{
-							ID: "command.launch.error.default-profile-not-found",
-							Other: "Selected profile \"{{ .Name }}\" is missing." +
-								" Select existing profile or specify profile to launch via argument.",
-						},
-					}), 1)
-				}
-				profile = p
-			} else {
-				return cli.Exit(locales.Translate(&i18n.Message{
-					ID:    "command.launch.error.no-selected-profile",
-					Other: "No profile selected to launch",
-				}), 1)
-			}
-		} else if ctx.NArg() == 1 {
-			i := ctx.Args().First()
-			p, ok := profiles.Profiles[i]
-			if !ok {
-				return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
-					TemplateData: map[string]string{
-						"Name": i,
-					},
-					DefaultMessage: &i18n.Message{
-						ID:    "command.launch.error.invalid-profile-specified",
-						Other: "Profile \"{{ .Name }}\" does not exist.",
-					},
-				}), 1)
-			}
-			profile = p
-		} else {
-			return cli.Exit(locales.Translate(&i18n.Message{
-				ID:    "command.launch.error.invalid-args-number",
-				Other: "Invalid number of arguments",
 			}), 1)
 		}
 
