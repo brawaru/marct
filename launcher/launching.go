@@ -1,7 +1,9 @@
 package launcher
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -9,6 +11,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/brawaru/marct/launcher/accounts"
 	"github.com/brawaru/marct/utils"
@@ -18,6 +21,19 @@ import (
 )
 
 const DefaultJVMArgs = "-Xmx2G -XX:+UnlockExperimentalVMOptions -XX:+UseG1GC -XX:G1NewSizePercent=20 -XX:G1ReservePercent=20 -XX:MaxGCPauseMillis=50 -XX:G1HeapRegionSize=32M"
+
+// standardJVMArguments returns standard Java arguments that Minecraft launcher uses when client JSON does not have them specified.
+func standardJVMArguments() (args []Argument) {
+	b, err := resourcesFS.ReadFile("resources/jvm_args.json")
+	if err != nil {
+		panic(err)
+	}
+	err = json.Unmarshal(b, &args)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
 
 type LaunchOptions struct {
 	Background    bool                   // Whether to launch the game in background with attacking it a child.
@@ -126,18 +142,44 @@ func (w *Instance) Launch(version Version, options LaunchOptions) (*LaunchResult
 	// - ${width}             Custom resolution width.
 	// - ${height}            Custom resolution height.
 
+	gameDirectory := filepath.FromSlash(options.GameDirectory)
+
+	if gameDirectory == "" || !filepath.IsAbs(gameDirectory) {
+		gameDirectory = filepath.Join(w.Path, gameDirectory)
+	}
+
+	if dirExists, err := validfile.DirExists(gameDirectory); err == nil {
+		if !dirExists {
+			if err := os.MkdirAll(gameDirectory, 0755); err != nil {
+				return nil, fmt.Errorf("cannot create game directory: %w", err)
+			}
+		}
+	} else {
+		return nil, fmt.Errorf("cannot check game directory: %w", err)
+	}
+
 	var virtualAssetsPath string
 	if version.AssetIndex != nil {
 		if ai, err := w.ReadAssetIndex(version.AssetIndex.ID); err != nil {
 			return lr, err
 		} else {
-			if ai.MapToResources != nil && *ai.MapToResources {
-				vp := w.AssetsVirtualPath(version.AssetIndex.ID)
+			var vp string
+			switch ai.MapType() {
+			case AsResources:
+				vp = filepath.Join(gameDirectory, "resources")
+			case AsVirtual:
+				vp = w.AssetsVirtualPath(version.AssetIndex.ID)
+			}
+
+			if vp != "" {
+				// FIXME: assets that have to be mapped in virtual directory can be hardlinked to save space and time on copying
+				//  since they are always in the same place unlike assets that are mapped as resources.
 				if err := ai.Virtualize(w.DefaultAssetsObjectResolver(), vp); err != nil {
 					return nil, fmt.Errorf("cannot virtualize assets: %w", err)
 				}
+
 				virtualAssetsPath = vp
-				lr.VirtualAssetsPath = vp
+				lr.VirtualAssetsPath = vp // FIXME: assets mapped as objects shall not be removed since this is a costly operation
 			}
 		}
 	}
@@ -147,7 +189,7 @@ func (w *Instance) Launch(version Version, options LaunchOptions) (*LaunchResult
 		nativesDirectory = np
 		lr.NativesDirectory = np
 	} else {
-		return nil, fmt.Errorf("cannot extract natives: %w", err)
+		return nil, fmt.Errorf("extract natives: %w", err)
 	}
 
 	ld := w.LibrariesPath()
@@ -170,22 +212,6 @@ func (w *Instance) Launch(version Version, options LaunchOptions) (*LaunchResult
 	}
 	classPath = append(classPath, path)
 
-	gameDirectory := filepath.FromSlash(options.GameDirectory)
-
-	if gameDirectory == "" || !filepath.IsAbs(gameDirectory) {
-		gameDirectory = filepath.Join(w.Path, gameDirectory)
-	}
-
-	if dirExists, err := validfile.DirExists(gameDirectory); err == nil {
-		if !dirExists {
-			if err := os.MkdirAll(gameDirectory, 0755); err != nil {
-				return nil, fmt.Errorf("cannot create game directory: %w", err)
-			}
-		}
-	} else {
-		return nil, fmt.Errorf("cannot check game directory: %w", err)
-	}
-
 	var resWidth string
 	var resHeight string
 	{
@@ -205,8 +231,13 @@ func (w *Instance) Launch(version Version, options LaunchOptions) (*LaunchResult
 
 	var jvmArgv []string
 
-	if version.Arguments != nil {
-		jvmArguments := version.Arguments.JVM
+	{
+		var jvmArguments []Argument
+		if version.Arguments != nil {
+			jvmArguments = version.Arguments.JVM
+		} else {
+			jvmArguments = standardJVMArguments()
+		}
 
 		for _, argument := range jvmArguments {
 			if argument.Rules.MatchesExtensively(featSet) {
@@ -264,6 +295,7 @@ func (w *Instance) Launch(version Version, options LaunchOptions) (*LaunchResult
 	}
 
 	var loggingArgv []string
+	var loggingProcessor io.Writer
 
 	if version.Logging != nil {
 		c, ok := version.Logging["client"]
@@ -271,7 +303,20 @@ func (w *Instance) Launch(version Version, options LaunchOptions) (*LaunchResult
 			loggingArgv = interpretArgv([]string{c.Argument}, map[string]string{
 				"path": w.LogConfigPath(c),
 			})
+
+			switch c.Type {
+			case "log4j2-xml":
+				loggingProcessor = &Log4JWriter{
+					Consumer: func(event Log4JEvent) {
+						fmt.Printf("[%s] [%s] [%s] %s\n", event.Timestamp.Format(time.RFC3339), event.Level, event.Thread, event.Message.Content)
+					},
+				}
+			}
 		}
+	}
+
+	if loggingProcessor == nil {
+		loggingProcessor = os.Stdout
 	}
 
 	var userArgv []string
@@ -325,7 +370,7 @@ func (w *Instance) Launch(version Version, options LaunchOptions) (*LaunchResult
 	cmd := exec.Command(javawPath, argv...)
 	cmd.Env = os.Environ()
 	cmd.Dir = gameDirectory
-	cmd.Stdout = os.Stdout
+	cmd.Stdout = loggingProcessor
 	cmd.Stderr = os.Stderr
 	if err := cmd.Start(); err != nil {
 		return nil, err

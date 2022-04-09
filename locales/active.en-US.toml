@@ -109,6 +109,7 @@
 "command.launch.error.account-type-not-supported" = "Account type {{ .AccountType }} is not supported."
 "command.launch.error.accounts-store-open-failed" = "Failed to open read your accounts: {{ .Error }}"
 "command.launch.error.cannot-inherit-versions" = "Unable to prepare for launch: {{ .Error }}"
+"command.launch.error.clean-error" = "Cannot clean up temporary files: {{ .Error }}"
 "command.launch.error.default-profile-not-found" = "Selected profile \"{{ .Name }}\" is missing. Select existing profile or specify profile to launch via argument."
 "command.launch.error.invalid-args-number" = "Invalid number of arguments"
 "command.launch.error.invalid-profile-specified" = "Profile \"{{ .Name }}\" does not exist."

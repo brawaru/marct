@@ -276,6 +276,18 @@ var launchCommand = createCommand(&cli.Command{
 					},
 				}), 1)
 			}
+
+			if err := lr.Clean(); err != nil {
+				return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
+					TemplateData: map[string]string{
+						"Error": err.Error(),
+					},
+					DefaultMessage: &i18n.Message{
+						ID:    "command.launch.error.clean-error",
+						Other: "Cannot clean up temporary files: {{ .Error }}",
+					},
+				}), 1)
+			}
 		}
 
 		return nil
