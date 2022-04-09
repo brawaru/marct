@@ -4,16 +4,17 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/brawaru/marct/sdtypes"
-	"github.com/brawaru/marct/utils"
-	"github.com/relvacode/iso8601"
 	"io"
 	"os"
 	"path/filepath"
+
+	"github.com/brawaru/marct/sdtypes"
+	"github.com/brawaru/marct/utils"
+	"github.com/relvacode/iso8601"
 )
 
 func (w *Instance) ReadProfiles() (profiles *Profiles, err error) {
-	err = unmarshalJSONFile(filepath.Join(w.Path, launcherProfilesPath), profiles)
+	err = unmarshalJSONFile(filepath.Join(w.Path, launcherProfilesPath), &profiles)
 
 	return
 }

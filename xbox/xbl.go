@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/brawaru/marct/network"
 	"github.com/brawaru/marct/utils"
-	"net/http"
 )
 
 // xbox live authentication
@@ -30,10 +31,11 @@ func createXTokenRequest(url string, request XTokenRequest) (*http.Request, erro
 }
 
 func mapXTokenResponse(resp *http.Response) (*XTokenResponse, error) {
-	if resp.StatusCode == 200 {
+	switch resp.StatusCode {
+	case http.StatusOK:
 		var res XTokenResponse
 		return &res, json.NewDecoder(resp.Body).Decode(&res)
-	} else if resp.StatusCode == 401 {
+	case http.StatusUnauthorized:
 		var e XTokenError
 		if json.NewDecoder(resp.Body).Decode(&e) == nil {
 			// if we couldn't decode means the error is something else in which case it is better to fall through

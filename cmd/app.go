@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"os"
 	"regexp"
 	"strings"
 
@@ -234,8 +233,8 @@ func init() {
 	app.HideHelpCommand = true
 }
 
-func Run() error {
-	return app.Run(os.Args)
+func Run(argv []string) error {
+	return app.Run(argv)
 }
 
 type prefixReplacements map[string]func(trimmed string) string

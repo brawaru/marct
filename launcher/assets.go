@@ -40,7 +40,7 @@ func (w *Instance) DownloadAssetIndex(descriptor AssetIndexDescriptor) error {
 }
 
 func (w *Instance) ReadAssetIndex(id string) (i *AssetIndex, err error) {
-	err = unmarshalJSONFile(w.AssetIndexPath(id), i)
+	err = unmarshalJSONFile(w.AssetIndexPath(id), &i)
 
 	return
 }

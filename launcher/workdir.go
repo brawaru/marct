@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/brawaru/marct/utils"
 )
 
 type Instance struct {
@@ -16,8 +18,14 @@ type Instance struct {
 
 const settingsFile = "marct_settings.toml"
 
-func (w *Instance) OpenSettings() (*Settings, error) {
-	return NewSettings(filepath.Join(w.Path, filepath.FromSlash(settingsFile)))
+func (w *Instance) OpenSettings() (*SettingsFile, error) {
+	s := NewSettings(filepath.Join(w.Path, filepath.FromSlash(settingsFile)))
+	if err := s.Read(); err != nil {
+		if !utils.DoesNotExist(err) {
+			return nil, fmt.Errorf("failed to read settings: %w", err)
+		}
+	}
+	return s, nil
 }
 
 func (w *Instance) Close() error {

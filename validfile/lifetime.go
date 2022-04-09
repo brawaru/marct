@@ -18,7 +18,7 @@ func (e *FileExpiredError) Error() string {
 func (e *FileExpiredError) Is(target error) bool {
 	t, ok := target.(*FileExpiredError)
 
-	return ok == true &&
+	return ok &&
 		(t.Name == "" || t.Name == e.Name) &&
 		(t.Modified.Equal(time.Time{}) || t.Modified.Equal(e.Modified)) &&
 		(t.TTL == 0 || t.TTL == e.TTL)

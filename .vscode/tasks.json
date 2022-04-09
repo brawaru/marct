@@ -1,0 +1,17 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "gogenerate",
+            "detail": "Generate resources",
+            "command": "go",
+            "type": "shell",
+            "args": ["generate"],
+            "problemMatcher": "$go",
+            "presentation": {
+                "reveal": "silent"
+            },
+            "group": "build"
+        }
+    ]
+}

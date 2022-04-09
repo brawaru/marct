@@ -84,7 +84,7 @@ func (w *Instance) DownloadVersionFile(descriptor VersionDescriptor) error {
 
 func (w *Instance) ReadVersionFile(id string) (v *Version, err error) {
 	if path, e := w.VersionFilePath(id, "json"); e == nil {
-		err = unmarshalJSONFile(path, v)
+		err = unmarshalJSONFile(path, &v)
 	} else {
 		err = fmt.Errorf("path version file %q: %w", id, e)
 	}

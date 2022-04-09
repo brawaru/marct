@@ -31,7 +31,7 @@
 "cli.prompts.select-keyring-backend.keychain" = "Keychain"
 "cli.prompts.select-keyring-backend.keyctl" = "Keyctl"
 "cli.prompts.select-keyring-backend.kwallet" = "KWallet"
-"cli.prompts.select-keyring-backend.message" = "Select keyring backend"
+"cli.prompts.select-keyring-backend.message" = "Select credentials storage"
 "cli.prompts.select-keyring-backend.pass" = "Pass"
 "cli.prompts.select-keyring-backend.secretservice" = "Secret Service"
 "cli.prompts.select-keyring-backend.wincred" = "Windows Credential Manager"

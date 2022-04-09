@@ -85,7 +85,7 @@ func keyringBackendSelectPrompt(backends []keyring.BackendType) (resp keyring.Ba
 	err = survey.AskOne(&survey.Select{
 		Message: locales.Translate(&i18n.Message{
 			ID:    "cli.prompts.select-keyring-backend.message",
-			Other: "Select keyring backend",
+			Other: "Select credentials storage",
 		}),
 		Default: options[0],
 		Options: options,
@@ -142,7 +142,7 @@ func keyringOpenFlow(instance *launcher.Instance) (keyring.Keyring, error) {
 
 	var bt keyring.BackendType
 
-	if s.Keyring.Backend == nil || slices.Includes(keyring.AvailableBackends(), *s.Keyring.Backend) {
+	if s.Keyring.Backend == nil || !slices.Includes(keyring.AvailableBackends(), *s.Keyring.Backend) {
 		bt, err = launcher.SelectKeyringBackend(keyringBackendSelectPrompt)
 		if err != nil {
 			return nil, cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
