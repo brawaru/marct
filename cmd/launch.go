@@ -2,7 +2,9 @@ package cmd
 
 import (
 	"errors"
+	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
@@ -47,9 +49,22 @@ var launchCommand = createCommand(&cli.Command{
 			}), 1)
 		}
 
+		// TODO: add -i option that prompts user to select profile to launch
+
 		var profile launcher.Profile
 		if ctx.NArg() == 0 {
-			if profiles.SelectedProfile != nil {
+			if profiles.SelectedProfile == nil || ctx.Bool("i") {
+				p, err := SelectProfileFlow(profiles, WithMessage(locales.Translate(&i18n.Message{
+					ID:    "command.launch.prompt.select-profile",
+					Other: "Select profile to launch",
+				})))
+
+				if err != nil {
+					return err
+				}
+
+				profile = *p
+			} else {
 				i := *profiles.SelectedProfile
 				p, ok := profiles.Profiles[i]
 				if !ok {
@@ -65,11 +80,6 @@ var launchCommand = createCommand(&cli.Command{
 					}), 1)
 				}
 				profile = p
-			} else {
-				return cli.Exit(locales.Translate(&i18n.Message{
-					ID:    "command.launch.error.no-selected-profile",
-					Other: "No profile selected to launch",
-				}), 1)
 			}
 		} else if ctx.NArg() == 1 {
 			i := ctx.Args().First()
@@ -109,7 +119,7 @@ var launchCommand = createCommand(&cli.Command{
 			}), 1)
 		}
 
-		if accountsStore.Accounts == nil || len(accountsStore.Accounts) == 0 {
+		if len(accountsStore.Accounts) == 0 {
 			command := strings.Join([]string{app.Name, accountCommand.Name, accountAddCommand.Name}, " ")
 			return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
 				TemplateData: map[string]string{
@@ -125,14 +135,12 @@ var launchCommand = createCommand(&cli.Command{
 		selectedAccount := accountsStore.GetSelectedAccount()
 
 		if selectedAccount == nil {
-			// let's ask user to select account using survey library
 			var options []string
 			optionsMappings := make(map[string]string)
 			for accountID, account := range accountsStore.Accounts {
 				option := ""
 				properties, err := minecraftAccount.ReadProperties(&account)
 				if err != nil {
-					// set option to translated 'Unknown account ({{ .ID }})'
 					option = locales.TranslateUsing(&i18n.LocalizeConfig{
 						TemplateData: map[string]string{
 							"ID": accountID,
@@ -158,7 +166,6 @@ var launchCommand = createCommand(&cli.Command{
 				}),
 				Options: options,
 			}, &selectedID, survey.WithValidator(func(ans interface{}) error {
-				// if answer is not of type string, then return error about invalid type
 				i, ok := ans.(survey.OptionAnswer)
 				if !ok {
 					return errors.New(locales.Translate(&i18n.Message{
@@ -167,7 +174,6 @@ var launchCommand = createCommand(&cli.Command{
 					}))
 				}
 
-				// if optionMappings doesn't have a key i, then return error about invalid selection
 				_, ok = optionsMappings[i.Value]
 				if !ok {
 					return errors.New(locales.Translate(&i18n.Message{
@@ -192,8 +198,6 @@ var launchCommand = createCommand(&cli.Command{
 			selection := accountsStore.Accounts[optionsMappings[selectedID]]
 			selectedAccount = &selection
 		}
-
-		print("Logging you in...\r")
 
 		switch selectedAccount.Type {
 		case "xbox":
@@ -262,6 +266,20 @@ var launchCommand = createCommand(&cli.Command{
 			}), 1) // FIXME: translate error to message
 		} else {
 			if err := lr.Command.Wait(); err != nil {
+				var e *exec.ExitError
+
+				if errors.As(err, &e) && e.ExitCode() != 0 {
+					println(locales.TranslateUsing(&i18n.LocalizeConfig{
+						TemplateData: map[string]string{
+							"ExitCode": strconv.Itoa(e.ExitCode()),
+						},
+						DefaultMessage: &i18n.Message{
+							ID:    "command.launch.warn.non-zero-exit",
+							Other: "Game process exited with code {{ .ExitCode }}",
+						},
+					}))
+				}
+
 				return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
 					TemplateData: map[string]string{
 						"Error": err.Error(),

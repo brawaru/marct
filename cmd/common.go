@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/99designs/keyring"
 	"github.com/AlecAivazis/survey/v2"
@@ -209,4 +210,144 @@ func xboxDeviceAuthPrompt(devAuth xbox.DeviceAuthResponse) error {
 	}))
 
 	return nil
+}
+
+type selectAccountFlowOptions struct {
+	SkipSelected bool    // Whether to skip the selected account.
+	Message      *string // Message to display. If empty, the default "Select profile" message will be used.
+}
+
+type SelectProfileFlowOption func(*selectAccountFlowOptions)
+
+func WithoutSelected() SelectProfileFlowOption {
+	return func(o *selectAccountFlowOptions) {
+		o.SkipSelected = true
+	}
+}
+
+func WithMessage(v string) SelectProfileFlowOption {
+	return func(o *selectAccountFlowOptions) {
+		o.Message = &v
+	}
+}
+
+func SelectProfileFlow(p *launcher.Profiles, options ...SelectProfileFlowOption) (*launcher.Profile, error) {
+	var o selectAccountFlowOptions
+	for _, opt := range options {
+		opt(&o)
+	}
+
+	if p == nil || len(p.Profiles) == 0 {
+		return nil, cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
+			TemplateData: map[string]string{
+				"Command": strings.Join([]string{
+					app.Name,
+					profileCommand.Name,
+					profileCreateCommand.Name,
+				}, " "),
+			},
+			DefaultMessage: &i18n.Message{
+				ID:    "cli.flows.select-account.error.no-profiles",
+				Other: "No profiles found. Create your first profile using `{{ .Command }}`.",
+			},
+		}), 1)
+	}
+
+	if !o.SkipSelected && p.SelectedProfile != nil {
+		p, ok := p.Profiles[*p.SelectedProfile]
+		if ok {
+			return &p, nil
+		}
+	}
+
+	var selection string
+	var variants []string
+	variantMappings := make(map[string]string)
+	for i, v := range p.Profiles {
+		name := v.Name
+		if name == "" {
+			name = locales.Translate(&i18n.Message{
+				ID:    "cli.prompts.select-profile.unnamed",
+				Other: "Unnamed profile",
+			})
+		}
+
+		option := locales.TranslateUsing(&i18n.LocalizeConfig{
+			TemplateData: map[string]string{
+				"Name":    name,
+				"Version": v.LastVersionID,
+			},
+			DefaultMessage: &i18n.Message{
+				ID:    "cli.prompts.select-profile.option",
+				Other: "{{ .Name }} ({{ .Version }})",
+			},
+		})
+
+		variants = append(variants, option)
+		variantMappings[option] = i
+	}
+
+	var msg string
+	if o.Message != nil {
+		msg = *o.Message
+	} else {
+		msg = locales.TranslateUsing(&i18n.LocalizeConfig{
+			DefaultMessage: &i18n.Message{
+				ID:    "cli.prompts.select-profile.message",
+				Other: "Select profile",
+			},
+		})
+	}
+
+	err := survey.AskOne(&survey.Select{
+		Message: msg,
+		Options: variants,
+	}, &selection, survey.WithValidator(func(ans interface{}) error {
+		i, ok := ans.(survey.OptionAnswer)
+		if !ok {
+			return errors.New(locales.Translate(&i18n.Message{
+				ID:    "cli.prompts.select-profile.error.invalid-type",
+				Other: "Invalid answer type",
+			}))
+		}
+
+		_, ok = variantMappings[i.Value]
+
+		if !ok {
+			return errors.New(locales.Translate(&i18n.Message{
+				ID:    "cli.prompts.select-profile.error.invalid-option",
+				Other: "Invalid option",
+			}))
+		}
+
+		return nil
+	}))
+
+	if err != nil {
+		return nil, cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
+			TemplateData: map[string]string{
+				"Error": err.Error(),
+			},
+			DefaultMessage: &i18n.Message{
+				ID:    "cli.prompts.select-profile.error.survey-failed",
+				Other: "Cannot read your answer: {{ .Error }}",
+			},
+		}), 1)
+	}
+
+	s, ok := p.Profiles[variantMappings[selection]]
+
+	if !ok {
+		return nil, cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
+			TemplateData: map[string]string{
+				"Selection": selection,
+			},
+			DefaultMessage: &i18n.Message{
+				ID:    "cli.prompts.select-profile.error.invalid-selection",
+				Other: "Invalid selection: {{ .Selection }}",
+			},
+		}), 1)
+	}
+
+	return &s, nil
 }
