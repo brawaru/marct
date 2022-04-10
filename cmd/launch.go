@@ -10,6 +10,7 @@ import (
 	"github.com/brawaru/marct/locales"
 	minecraftAccount "github.com/brawaru/marct/minecraft/account"
 	"github.com/brawaru/marct/utils"
+	"github.com/brawaru/marct/utils/pointers"
 	xboxAuthFlow "github.com/brawaru/marct/xbox/authflow"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/urfave/cli/v2"
@@ -242,14 +243,9 @@ var launchCommand = createCommand(&cli.Command{
 			}), 1) // FIXME: translate error to message
 		}
 
-		var javaPath string
-		if profile.JavaPath != nil {
-			javaPath = *profile.JavaPath
-		}
-
 		if lr, err := instance.Launch(*version, launcher.LaunchOptions{
 			Background:    ctx.Bool("background"),
-			JavaPath:      javaPath,
+			JavaPath:      pointers.DerefOrDefault(profile.JavaPath),
 			Resolution:    profile.Resolution,
 			Authorization: *selectedAccount.Authorization,
 			GameDirectory: filepath.Join(instance.Path, filepath.FromSlash(profile.GameDir)), // MCL compat: no sanitization

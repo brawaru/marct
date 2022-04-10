@@ -1,6 +1,8 @@
 package launcher
 
 import (
+	"crypto/sha1"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -30,12 +32,12 @@ func (a *Asset) URL() string {
 	return resourcesURL + "/" + a.Path()
 }
 
-type AssetIndexMappingType byte
+type AssetsMappingMethod byte
 
 const (
-	AsObjects   AssetIndexMappingType = iota // Assets should not be mapped, game reads assets manually.
-	AsResources                              // Assets should be mapped in game directory, in resources folder.
-	AsVirtual                                // Assets should be mapped to virtual assets directory.
+	NoMapping AssetsMappingMethod = iota // Assets should not be mapped, game reads assets manually.
+	AsCopies                             // Assets should be mapped in game directory, in resources folder.
+	AsLinks                              // Assets should be mapped to virtual assets directory.
 )
 
 type AssetIndex struct {
@@ -44,49 +46,39 @@ type AssetIndex struct {
 	Virtual        *bool            `json:"virtual,omitempty"`          // Whether the assets should be virtualized into the ${root}/assets/virtual directory.
 }
 
-func (i *AssetIndex) MapType() AssetIndexMappingType {
+func (i *AssetIndex) GetMappingMethod() AssetsMappingMethod {
 	switch {
 	case i.MapToResources != nil && *i.MapToResources:
-		return AsResources
+		return AsCopies
 	case i.Virtual != nil && *i.Virtual:
-		return AsVirtual
+		return AsLinks
 	default:
-		return AsObjects
+		return NoMapping
 	}
 }
 
 type AssetPathResolver func(asset Asset) string
 
-func (i *AssetIndex) Virtualize(pr AssetPathResolver, virtualPath string) error {
-	if exists, existsErr := validfile.DirExists(virtualPath); existsErr == nil {
-		if exists {
-			if removeErr := os.RemoveAll(virtualPath); removeErr != nil {
-				return removeErr
-			}
-		}
-	} else {
-		return existsErr
-	}
-
+func (i *AssetIndex) Virtualize(pr AssetPathResolver, virtualPath string, method AssetsMappingMethod) error {
 	if mkdirErr := os.MkdirAll(virtualPath, os.ModePerm); mkdirErr != nil {
 		return mkdirErr
 	}
 
+	if len(i.Objects) == 0 {
+		return nil // NOOP
+	}
+
 	for p, o := range i.Objects {
-		err := i.virtualizeAsset(pr, o, virtualPath, p)
+		err := i.virtualizeAsset(pr, o, virtualPath, p, method)
 		if err != nil {
 			return fmt.Errorf("virtualize %q: %w", p, err)
 		}
-
-		// if err := os.Link(s, d); err != nil {
-		// 	return err
-		// }
 	}
 
 	return nil
 }
 
-func (*AssetIndex) virtualizeAsset(pr AssetPathResolver, o Asset, vp string, p string) error {
+func (*AssetIndex) virtualizeAsset(pr AssetPathResolver, o Asset, vp string, p string, m AssetsMappingMethod) error {
 	s := pr(o)
 	d := filepath.Join(vp, filepath.FromSlash(p))
 
@@ -96,21 +88,47 @@ func (*AssetIndex) virtualizeAsset(pr AssetPathResolver, o Asset, vp string, p s
 		}
 	}
 
-	sf, err := os.OpenFile(s, os.O_RDONLY, os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("open source file %q: %w", s, err)
+	if err := validfile.ValidateFileHex(d, sha1.New(), o.Hash); err != nil {
+		var ve *validfile.ValidateError
+		if !errors.As(err, &ve) || !ve.Mismatch() {
+			return fmt.Errorf("validate existing file %q: %w", d, err)
+		}
+	} else {
+		return nil // NOOP
 	}
-	defer utils.DClose(sf)
 
-	df, err := os.OpenFile(d, os.O_CREATE|os.O_WRONLY, os.ModePerm)
-	if err != nil {
-		return fmt.Errorf("open destination file %q: %w", d, err)
+	if err := validfile.ValidateFileHex(s, sha1.New(), o.Hash); err != nil {
+		return fmt.Errorf("validate source file %q: %w", s, err)
 	}
-	defer utils.DClose(df)
 
-	_, err = io.Copy(df, sf)
-	if err != nil {
-		return fmt.Errorf("copy contents of %q to %q", s, d)
+	switch m {
+	case AsCopies:
+		sf, err := os.OpenFile(s, os.O_RDONLY, os.ModePerm)
+		if err != nil {
+			return fmt.Errorf("open source file %q: %w", s, err)
+		}
+		defer utils.DClose(sf)
+
+		df, err := os.OpenFile(d, os.O_CREATE|os.O_WRONLY, os.ModePerm)
+		if err != nil {
+			return fmt.Errorf("open destination file %q: %w", d, err)
+		}
+		defer utils.DClose(df)
+
+		_, err = io.Copy(df, sf)
+		if err != nil {
+			return fmt.Errorf("copy contents of %q to %q", s, d)
+		}
+	case AsLinks:
+		if err := os.Link(s, d); err != nil {
+			return fmt.Errorf("link %q to %q: %w", s, d, err)
+		}
+	default:
+		return fmt.Errorf("illegal mapping method %v", m)
+	}
+
+	if err := validfile.ValidateFileHex(d, sha1.New(), o.Hash); err != nil {
+		return fmt.Errorf("post-map validate destination file %q: %w", d, err)
 	}
 
 	return nil

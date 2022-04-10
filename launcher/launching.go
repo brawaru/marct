@@ -45,9 +45,8 @@ type LaunchOptions struct {
 }
 
 type LaunchResult struct {
-	Command           *exec.Cmd
-	NativesDirectory  string
-	VirtualAssetsPath string
+	Command          *exec.Cmd
+	NativesDirectory string
 }
 
 type CleanError struct {
@@ -66,10 +65,6 @@ func (r *LaunchResult) Clean() error {
 	var s []error
 
 	if err := os.RemoveAll(r.NativesDirectory); err != nil {
-		s = append(s, err)
-	}
-
-	if err := os.RemoveAll(r.VirtualAssetsPath); err != nil {
 		s = append(s, err)
 	}
 
@@ -164,22 +159,20 @@ func (w *Instance) Launch(version Version, options LaunchOptions) (*LaunchResult
 			return lr, err
 		} else {
 			var vp string
-			switch ai.MapType() {
-			case AsResources:
+			mt := ai.GetMappingMethod()
+			switch mt {
+			case AsCopies:
 				vp = filepath.Join(gameDirectory, "resources")
-			case AsVirtual:
+			case AsLinks:
 				vp = w.AssetsVirtualPath(version.AssetIndex.ID)
 			}
 
 			if vp != "" {
-				// FIXME: assets that have to be mapped in virtual directory can be hardlinked to save space and time on copying
-				//  since they are always in the same place unlike assets that are mapped as resources.
-				if err := ai.Virtualize(w.DefaultAssetsObjectResolver(), vp); err != nil {
+				if err := ai.Virtualize(w.DefaultAssetsObjectResolver(), vp, mt); err != nil {
 					return nil, fmt.Errorf("cannot virtualize assets: %w", err)
 				}
 
-				virtualAssetsPath = vp
-				lr.VirtualAssetsPath = vp // FIXME: assets mapped as objects shall not be removed since this is a costly operation
+				virtualAssetsPath = w.AssetsVirtualPath(version.AssetIndex.ID) // MCL compat
 			}
 		}
 	}
@@ -365,7 +358,9 @@ func (w *Instance) Launch(version Version, options LaunchOptions) (*LaunchResult
 		javawPath = options.JavaPath
 	}
 
-	fmt.Printf("java: %q\nargv:\n %s\n", javawPath, strings.Join(argv, "\n "))
+	if os.Getenv("MARCT_MODE") == "debug" {
+		fmt.Printf("java: %q\nargv:\n %s\n", javawPath, strings.Join(argv, "\n "))
+	}
 
 	cmd := exec.Command(javawPath, argv...)
 	cmd.Env = os.Environ()

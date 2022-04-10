@@ -39,7 +39,7 @@ var utilsVirtualizeCommand = createCommand(&cli.Command{
 			return err // FIXME: wrap error
 		}
 
-		if virtualizeErr := ai.Virtualize(workDir.DefaultAssetsObjectResolver(), workDir.AssetsVirtualPath(i)); virtualizeErr != nil {
+		if virtualizeErr := ai.Virtualize(workDir.DefaultAssetsObjectResolver(), workDir.AssetsVirtualPath(i), launcher.AsLinks); virtualizeErr != nil {
 			var pathErr *os.PathError
 			if errors.As(virtualizeErr, &pathErr) && errors.Is(pathErr, os.ErrNotExist) {
 				return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{

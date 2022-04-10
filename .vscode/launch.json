@@ -14,8 +14,9 @@
             "console": "integratedTerminal",
             "preLaunchTask": "gogenerate",
             "env": {
-                "TERM_PROGRAM": "vscode"
-            },
+                "TERM_PROGRAM": "vscode",
+                "MARCT_MODE": "debug"
+            }
         }
     ]
 }
