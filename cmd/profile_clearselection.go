@@ -8,7 +8,8 @@ import (
 )
 
 var profileSelectionClearCommand = createCommand(&cli.Command{
-	Name: "selection-clear",
+	Name:    "selection-clear",
+	Aliases: []string{"deselect"},
 	Usage: locales.Translate(&i18n.Message{
 		ID:    "command.profile-selection-clear.usage",
 		Other: "Clear default profile selection",
