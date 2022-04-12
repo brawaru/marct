@@ -3,6 +3,7 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/brawaru/marct/network"
 	"github.com/brawaru/marct/utils"
 )
@@ -34,7 +35,7 @@ func (a *AuthorizedAPI) GetProfile() (*Profile, error) {
 		return nil, reqCreateErr
 	}
 
-	resp, reqErr := network.Do(req, network.RetryIndefinitely)
+	resp, reqErr := network.PerformRequest(req, network.WithRetries())
 	if reqErr != nil {
 		return nil, reqErr
 	}

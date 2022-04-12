@@ -1,7 +1,7 @@
-package network
+package concheck
 
 import "testing"
 
 func TestChecker(t *testing.T) {
-	WaitForConnection()
+	panic("implement me")
 }

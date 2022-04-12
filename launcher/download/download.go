@@ -30,9 +30,14 @@ func retrieveByteBuf(u string, buf []byte) error {
 
 	expectedLen := int64(len(buf))
 
-	resp, reqErr := network.RequestLoop(network.Get(u), network.RetryIndefinitely)
+	r, err := http.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return fmt.Errorf("create request: %w", err)
+	}
+
+	resp, reqErr := network.PerformRequest(r, network.WithRetries())
 	if reqErr != nil {
-		return reqErr
+		return fmt.Errorf("request: %w", reqErr)
 	}
 
 	defer utils.DClose(resp.Body)

@@ -3,14 +3,14 @@ package network
 import (
 	"crypto/tls"
 	"errors"
-	"github.com/brawaru/marct/utils"
+	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"os"
 	"path/filepath"
-	"syscall"
 	"time"
+
+	"github.com/brawaru/marct/utils"
 )
 
 var tr = &http.Transport{
@@ -20,55 +20,9 @@ var tr = &http.Transport{
 	},
 }
 
-var HttpClient = http.Client{
+var DefaultClient = http.Client{
 	Timeout:   time.Second * 30,
 	Transport: tr,
-}
-
-var RetryIndefinitely = func(error) bool { return true }
-
-func LimitRetries(maxRetries int) func(error) bool {
-	retries := 0
-
-	return func(error) bool {
-		retries += 1
-		return retries < maxRetries
-	}
-}
-
-func Get(url string) func(client http.Client) (*http.Response, error) {
-	return func(client http.Client) (*http.Response, error) {
-		return client.Get(url)
-	}
-}
-
-func RequestLoop(applyRequest func(client http.Client) (*http.Response, error), handleError func(err error) bool) (*http.Response, error) {
-	for {
-		body, err := applyRequest(HttpClient)
-
-		if err == nil {
-			return body, nil
-		}
-
-		retry := false
-
-		if handleError(err) {
-			rootCause := utils.TraverseCauses(err, errors.Unwrap)
-
-			switch rootCause.(type) {
-			case *net.DNSError:
-				retry = true
-			case *syscall.Errno:
-				retry = errors.Is(rootCause, syscall.ECONNRESET)
-			}
-		}
-
-		if retry {
-			WaitForConnection()
-		} else {
-			return body, err
-		}
-	}
 }
 
 func createFile(name string) (*os.File, error) {
@@ -81,11 +35,22 @@ func createFile(name string) (*os.File, error) {
 	return os.Create(name)
 }
 
-func Download(url string, dest string) (written int64, err error) {
-	resp, reqErr := RequestLoop(Get(url), RetryIndefinitely)
+// Download sends a request to a given URL and writes response body to the destination. It does not account for status
+// codes and will write any body it receives without errors.
+//
+// It will be removed in the future when the better APIs are available. Avoid using it.
+func Download(url string, dest string, options ...Option) (written int64, err error) {
+	r, e := http.NewRequest("GET", url, nil)
+	if e != nil {
+		err = fmt.Errorf("create request: %w", e)
+		return
+	}
 
-	if reqErr != nil {
-		return 0, reqErr
+	resp, e := PerformRequest(r, options...)
+
+	if e != nil {
+		err = fmt.Errorf("perform request: %w", e)
+		return
 	}
 
 	defer utils.DClose(resp.Body)
@@ -101,8 +66,57 @@ func Download(url string, dest string) (written int64, err error) {
 	return io.Copy(file, resp.Body)
 }
 
-func Do(request *http.Request, handleError func(err error) bool) (*http.Response, error) {
-	return RequestLoop(func(client http.Client) (*http.Response, error) {
-		return client.Do(request)
-	}, handleError)
+// ErrorHandler handles errors that occur during the execution of an action. It may return an error if it needs a raise,
+// or ErrRetryRequest error, if request can be repeated. If nil is returned, then the next error handler is called.
+type ErrorHandler func(e error) error
+
+type ActionOptions struct {
+	// Error handlers defined in sequential order. If error occurs during the execution of an action, then the first
+	// handler is called, if it returns an error that is not ErrRetryRequest, then this error is returned to the
+	// caller of the action. If the error is ErrRetryRequest, then the action is repeated. If no error is returned,
+	// then the next handler is called. If no handlers handle the error, then the error is returned to the caller.
+	ErrorHandlers []ErrorHandler
+	// HTTP client used to execute the action.
+	Client *http.Client
+}
+
+type Option func(*http.Request, *ActionOptions)
+
+var (
+	// ErrRetryRequest is the error reported by Error handler if error is considered insignificant and request might be
+	// re-attempted again.
+	ErrRetryRequest = errors.New("retry request")
+)
+
+func PerformRequest(request *http.Request, options ...Option) (*http.Response, error) {
+	o := &ActionOptions{
+		ErrorHandlers: []ErrorHandler{},
+		Client:        &DefaultClient,
+	}
+
+	for _, option := range options {
+		option(request, o)
+	}
+
+	for {
+		resp, reqErr := o.Client.Do(request)
+
+		if reqErr != nil {
+			for _, handler := range o.ErrorHandlers {
+				err := handler(reqErr)
+
+				if err != nil {
+					if errors.Is(reqErr, ErrRetryRequest) {
+						continue
+					}
+
+					return nil, err
+				}
+			}
+
+			return nil, reqErr
+		}
+
+		return resp, nil
+	}
 }

@@ -3,16 +3,24 @@ package xbox
 import (
 	"encoding/json"
 	"errors"
+	"time"
+
 	"github.com/brawaru/marct/network"
 	"github.com/brawaru/marct/utils"
-	"time"
 )
 
-func RequestDeviceAuth() (*DeviceAuthResponse, error) {
-	resp, reqErr := network.RequestLoop(deviceAuthRequest, network.RetryIndefinitely)
+// FIXME: many errors are unwrapped
 
-	if reqErr != nil {
-		return nil, reqErr
+func RequestDeviceAuth() (*DeviceAuthResponse, error) {
+	req, err := createDeviceAuthRequest()
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := network.PerformRequest(req, network.WithRetries())
+
+	if err != nil {
+		return nil, err
 	}
 
 	defer utils.DClose(resp.Body)
@@ -23,10 +31,13 @@ func RequestDeviceAuth() (*DeviceAuthResponse, error) {
 
 func TokenAcquisitionLoop(req DeviceAuthResponse) (*TokenResponse, error) {
 	interval := time.Second * time.Duration(req.Interval)
-	request := createMsftTokenRequest(req.DeviceCode)
+	r, err := createMsftTokenRequest(req.DeviceCode)
+	if err != nil {
+		return nil, err
+	}
 
 	for {
-		resp, reqErr := network.RequestLoop(request, network.RetryIndefinitely)
+		resp, reqErr := network.PerformRequest(r, network.WithRetries())
 
 		if reqErr != nil {
 			return nil, reqErr
@@ -58,12 +69,14 @@ func TokenAcquisitionLoop(req DeviceAuthResponse) (*TokenResponse, error) {
 }
 
 func RefreshToken(refreshToken string) (*TokenResponse, error) {
-	request := createMsftRefreshTokenRequest(refreshToken)
+	req, err := createMsftRefreshTokenRequest(refreshToken)
+	if err != nil {
+		return nil, err
+	}
 
-	resp, reqErr := network.RequestLoop(request, network.RetryIndefinitely)
-
-	if reqErr != nil {
-		return nil, reqErr
+	resp, err := network.PerformRequest(req, network.WithRetries())
+	if err != nil {
+		return nil, err
 	}
 
 	defer utils.DClose(resp.Body)

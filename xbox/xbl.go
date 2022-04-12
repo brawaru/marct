@@ -61,7 +61,7 @@ func AuthXBLUser(accessToken string) (*XTokenResponse, error) {
 		return nil, reqCreateErr
 	}
 
-	resp, reqErr := network.Do(req, network.RetryIndefinitely)
+	resp, reqErr := network.PerformRequest(req, network.WithRetries())
 	if reqErr != nil {
 		return nil, reqErr
 	}
@@ -85,7 +85,7 @@ func GetXSTSToken(xblToken string) (*XTokenResponse, error) {
 		return nil, reqCreateErr
 	}
 
-	resp, reqErr := network.Do(req, network.RetryIndefinitely)
+	resp, reqErr := network.PerformRequest(req, network.WithRetries())
 	if reqErr != nil {
 		return nil, reqErr
 	}

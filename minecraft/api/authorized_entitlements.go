@@ -5,6 +5,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+
 	"github.com/brawaru/marct/network"
 	"github.com/brawaru/marct/utils"
 	RSA "github.com/dvsekhvalnov/jose2go/keys/rsa"
@@ -44,7 +45,7 @@ func (a *AuthorizedAPI) GetEntitlements() (*EntitlementsResponse, error) {
 	query.Set("requestId", utils.NewUUID())
 	req.URL.RawQuery = query.Encode()
 
-	resp, respErr := network.Do(req, network.RetryIndefinitely)
+	resp, respErr := network.PerformRequest(req, network.WithRetries())
 
 	if respErr != nil {
 		return nil, respErr

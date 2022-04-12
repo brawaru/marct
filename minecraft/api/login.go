@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/brawaru/marct/network"
 	"github.com/brawaru/marct/utils"
-	"net/http"
 )
 
 type AuthResponse struct {
@@ -52,7 +53,7 @@ func LoginWithXbox(userHash string, xstsToken string) (*AuthResponse, error) {
 		return nil, reqCreateErr
 	}
 
-	resp, reqErr := network.Do(req, network.RetryIndefinitely)
+	resp, reqErr := network.PerformRequest(req, network.WithRetries())
 	if reqErr != nil {
 		return nil, reqErr
 	}

@@ -56,7 +56,7 @@ func (w *Instance) FetchVersions(force bool) (manifest *VersionsManifest, err er
 			return
 		}
 
-		resp, e := network.Do(req, network.RetryIndefinitely)
+		resp, e := network.PerformRequest(req, network.WithRetries())
 		if e != nil {
 			err = fmt.Errorf("send request: %w", e)
 			return
