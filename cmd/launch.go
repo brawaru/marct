@@ -234,7 +234,51 @@ var launchCommand = createCommand(&cli.Command{
 			}), 1)
 		}
 
-		version, err := instance.ReadVersionWithInherits(profile.LastVersionID)
+		versionID := profile.LastVersionID
+		if versionID == "latest-release" || versionID == "latest-snapshot" {
+			// this is a special ID and we'll have to fetch versions list
+			v, err := instance.FetchVersions(false)
+			if err != nil {
+				return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
+					TemplateData: map[string]string{
+						"Error": err.Error(),
+					},
+					DefaultMessage: &i18n.Message{
+						ID:    "command.launch.error.versions-fetch-failed",
+						Other: "Cannot acquire a list of latest versions: {{ .Error }}",
+					},
+				}), 1)
+			}
+
+			vd := v.GetVersion(versionID)
+			if vd == nil {
+				return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
+					TemplateData: map[string]string{
+						"VersionID": versionID,
+					},
+					DefaultMessage: &i18n.Message{
+						ID:    "command.launch.error.version-not-found",
+						Other: "Cannot get recent version for ID {{ .VersionID }}.",
+					},
+				}), 1)
+			}
+
+			if err := instance.DownloadVersionFile(*vd); err != nil {
+				return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
+					TemplateData: map[string]string{
+						"Error": err.Error(),
+					},
+					DefaultMessage: &i18n.Message{
+						ID:    "command.launch.error.version-fetch-failed",
+						Other: "Cannot get version manifest for {{ .VersionID }}: {{ .Error }}",
+					},
+				}), 1)
+			}
+
+			versionID = vd.ID
+		}
+
+		version, err := instance.ReadVersionWithInherits(versionID)
 		if err != nil {
 			return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
 				TemplateData: map[string]string{
@@ -243,6 +287,18 @@ var launchCommand = createCommand(&cli.Command{
 				DefaultMessage: &i18n.Message{
 					ID:    "command.launch.error.cannot-inherit-versions",
 					Other: "Unable to prepare for launch: {{ .Error }}",
+				},
+			}), 1) // FIXME: translate error to message
+		}
+
+		if err := instance.DownloadVersion(*version); err != nil {
+			return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
+				TemplateData: map[string]string{
+					"Error": err.Error(),
+				},
+				DefaultMessage: &i18n.Message{
+					ID:    "command.launch.error.cannot-download-version",
+					Other: "Unable to download and verify version files: {{ .Error }}",
 				},
 			}), 1) // FIXME: translate error to message
 		}

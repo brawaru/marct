@@ -2,15 +2,19 @@ package sdtypes
 
 import (
 	"encoding/json"
-	"github.com/relvacode/iso8601"
-	"strings"
 	"time"
+
+	"github.com/relvacode/iso8601"
 )
 
 type ISOTime time.Time
 
 func (t *ISOTime) UnmarshalJSON(v []byte) error {
-	value := strings.Trim(string(v), "\"")
+	var value string
+	if err := json.Unmarshal(v, &value); err != nil {
+		return err
+	}
+
 	parsedTime, err := iso8601.ParseString(value)
 
 	if err != nil {

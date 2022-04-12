@@ -13,6 +13,8 @@ type Instance struct {
 	// Path to the instance directory
 	Path string
 
+	TemporalData map[any]any
+
 	closed bool
 }
 
@@ -43,7 +45,10 @@ func OpenInstance(name string) (*Instance, error) {
 		return nil, fmt.Errorf("failed to get current directory: %w", err)
 	}
 
-	return &Instance{
-		Path: filepath.Join(currentDir, name),
-	}, nil
+	i := &Instance{
+		Path:         filepath.Join(currentDir, name),
+		TemporalData: make(map[any]any),
+	}
+
+	return i, nil
 }

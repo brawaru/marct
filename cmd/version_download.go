@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/brawaru/marct/launcher"
 	"github.com/brawaru/marct/locales"
