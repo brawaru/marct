@@ -104,23 +104,31 @@ func runMigrations(m map[string]any) (migrated bool, err error) {
 
 func (s *SettingsFile) Read() (err error) {
 	m := make(map[string]any)
+
 	_, err = toml.DecodeFile(s.fp, &m)
 	if err != nil {
 		err = fmt.Errorf("decode %s: %w", s.fp, err)
+		return
 	}
+
 	migrated, err := runMigrations(m)
 	if err != nil {
 		err = fmt.Errorf("migrate %s: %w", s.fp, err)
+		return
 	}
-	if err := mapstructure.Decode(m, &s.Settings); err != nil {
+
+	if err = mapstructure.Decode(m, &s.Settings); err != nil {
 		err = fmt.Errorf("map %s: %w", s.fp, err)
+		return
 	}
+
 	if migrated {
 		err = s.Save()
 		if err != nil {
 			err = fmt.Errorf("save (after migration) %s: %w", s.fp, err)
 		}
 	}
+
 	return
 }
 
