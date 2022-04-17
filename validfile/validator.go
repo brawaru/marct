@@ -5,10 +5,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"github.com/brawaru/marct/utils"
 	"hash"
 	"io"
 	"os"
+
+	"github.com/brawaru/marct/utils"
 )
 
 type HashMatchError struct {
@@ -26,6 +27,8 @@ func (h *HashMatchError) Is(target error) bool {
 		(t.Expected == nil || bytes.Equal(h.Expected, t.Expected)) &&
 		(t.Actual == nil || bytes.Equal(h.Actual, t.Actual))
 }
+
+// FIXME: remove ValidateError in favour of more specific errors
 
 type ValidateError struct {
 	Name string

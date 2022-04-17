@@ -32,6 +32,28 @@ func Includes[I comparable](slice []I, item I) bool {
 	return false
 }
 
+func ExcludeFrom[I comparable](slice *[]I, item I) bool {
+	s, ok := Exclude(*slice, item)
+	if ok {
+		*slice = s
+	}
+	return ok
+}
+
+func Exclude[I comparable](slice []I, item I) ([]I, bool) {
+	if slice == nil {
+		return nil, false
+	}
+
+	for i, v := range slice {
+		if v == item {
+			return append(slice[:i], slice[i+1:]...), true
+		}
+	}
+
+	return slice, false
+}
+
 type Predicate[I any] func(item *I, index int, slice []I) bool
 
 // NotFound is an index that is reported when no value is found.
