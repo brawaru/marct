@@ -359,7 +359,7 @@ func (w *Instance) Launch(version Version, options LaunchOptions) (*LaunchResult
 	}
 
 	if os.Getenv("MARCT_MODE") == "debug" {
-		fmt.Printf("java: %q\nargv:\n %s\n", javawPath, strings.Join(argv, "\n "))
+		fmt.Printf("java: %q\nargv:\n %s\n", javawPath, strings.ReplaceAll(strings.Join(argv, "\n "), options.Authorization.AccessToken, "***"))
 	}
 
 	cmd := exec.Command(javawPath, argv...)
