@@ -23,6 +23,8 @@ func (c *mozChecker) Run() (concheck.CheckResult, error) {
 
 	if err == nil {
 		switch resp.StatusCode {
+		case http.StatusFound:
+			fallthrough
 		case http.StatusTemporaryRedirect:
 			var redirectUrl = resp.Header.Get("Location")
 

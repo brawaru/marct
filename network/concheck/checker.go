@@ -42,6 +42,7 @@ func (c *checkInProgress) Wait() chan error {
 	c.m.Lock()
 	defer c.m.Unlock()
 	ch := make(chan error)
+	c.waiters = append(c.waiters, ch)
 	return ch
 }
 
@@ -62,10 +63,13 @@ func WaitForConnection(ctx context.Context, checker Checker) error {
 	c := currentChecks[checker]
 
 	if c == nil {
-		*c = checkInProgress{
+		n := checkInProgress{
 			waiters: []chan error{},
 			m:       sync.Mutex{},
 		}
+
+		currentChecks[checker] = &n
+		c = &n
 
 		go func() {
 			c.Result(checkLoop(ctx, checker))

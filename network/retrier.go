@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/brawaru/marct/network/concheck"
+	"github.com/brawaru/marct/network/concheck/mozchecker"
 )
 
 type RequestRetrierOptions struct {
@@ -44,6 +45,16 @@ func WithConstRetryDelay(delay time.Duration) RetrierOption {
 	return WithRetryDelay(delay, 1, delay)
 }
 
+func WithConnectionChecker(checker concheck.Checker) RetrierOption {
+	return func(options *RequestRetrierOptions) {
+		options.ConnectionChecker = checker
+	}
+}
+
+var isNetworkReset = func(errno syscall.Errno) bool {
+	return errno == syscall.ECONNRESET
+}
+
 func IsNetworkError(e error) bool {
 	{
 		var dnsErr *net.DNSError
@@ -53,10 +64,9 @@ func IsNetworkError(e error) bool {
 	}
 
 	{
-		var syscallErr *syscall.Errno
+		var syscallErr syscall.Errno
 		if errors.As(e, &syscallErr) {
-			// FIXME: there are probably more errors that have to be handled.
-			return errors.Is(syscallErr, syscall.ECONNRESET)
+			return isNetworkReset != nil && isNetworkReset(syscallErr)
 		}
 	}
 
@@ -70,6 +80,7 @@ func WithRetries(options ...RetrierOption) Option {
 		RetryDelay:            time.Second,
 		RetryDelayMultiplier:  2,
 		RetryDelayMax:         time.Minute,
+		ConnectionChecker:     mozchecker.NewMozChecker(),
 	}
 
 	for _, option := range options {
@@ -82,7 +93,7 @@ func WithRetries(options ...RetrierOption) Option {
 		options.ErrorHandlers = append(options.ErrorHandlers, func(err error) error {
 			isNetErr := IsNetworkError(err)
 
-			if (o.AllowNonNetworkErrors || isNetErr) && retries < o.MaxRetries {
+			if (o.AllowNonNetworkErrors || isNetErr) && (o.MaxRetries == 0 || retries < o.MaxRetries) {
 				delay := o.RetryDelay * time.Duration(math.Max(1, o.RetryDelayMultiplier*float64(retries)))
 
 				if delay > o.RetryDelayMax {
