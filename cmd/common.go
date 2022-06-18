@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"errors"
+	"regexp"
 	"strings"
 
 	"github.com/99designs/keyring"
@@ -12,6 +13,14 @@ import (
 	"github.com/brawaru/marct/xbox"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/urfave/cli/v2"
+)
+
+type ctxKey string
+
+const (
+	accountsStoreKey ctxKey = "accounts"
+	instanceKey      ctxKey = "instance"
+	workDirKey       ctxKey = "workDir"
 )
 
 func keyringOpenPrompt(req string) (resp string, err error) {
@@ -350,4 +359,60 @@ func SelectProfileFlow(p *launcher.Profiles, options ...SelectProfileFlowOption)
 	}
 
 	return &s, nil
+}
+
+// Regular Expression for checking the valid Minecraft username.
+//
+// Current rules for usernames are (as per https://help.minecraft.net/hc/en-us/articles/4408950195341):
+// - must have 3-16 characters
+// - must not have spaces
+// - A-Z, a-z, 0-9
+// - the only allowed special character is _
+//
+var minecraftUsernameRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{3,16}$`)
+
+func offlineUsernamePrompt() (string, error) {
+	var username string
+	err := survey.AskOne(&survey.Input{
+		Message: locales.Translate(&i18n.Message{
+			ID:    "cli.prompts.offline-username",
+			Other: "Username",
+		}),
+		Help: locales.Translate(&i18n.Message{
+			ID:    "cli.prompts.offline-username.help",
+			Other: "Enter your username to use for offline account.",
+		}),
+	}, &username, survey.WithValidator(func(ans interface{}) error {
+		i, ok := ans.(string)
+
+		if !ok {
+			return errors.New(locales.Translate(&i18n.Message{
+				ID:    "cli.prompts.offline-username.error.invalid-type",
+				Other: "Invalid answer type",
+			}))
+		}
+
+		if !minecraftUsernameRegex.MatchString(i) {
+			return errors.New(locales.Translate(&i18n.Message{
+				ID:    "cli.prompts.offline-username.error.invalid-format",
+				Other: "Invalid username",
+			}))
+		}
+
+		return nil
+	}))
+
+	if err != nil {
+		return "", cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
+			TemplateData: map[string]string{
+				"Error": err.Error(),
+			},
+			DefaultMessage: &i18n.Message{
+				ID:    "cli.prompts.offline-username.error.survey-failed",
+				Other: "Cannot read your answer: {{ .Error }}",
+			},
+		}), 1)
+	}
+
+	return username, nil
 }

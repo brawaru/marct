@@ -11,8 +11,11 @@ import (
 	"github.com/brawaru/marct/launcher"
 	"github.com/brawaru/marct/locales"
 	minecraftAccount "github.com/brawaru/marct/minecraft/account"
+	offlineAccount "github.com/brawaru/marct/offline/account"
+	offlineAuthFlow "github.com/brawaru/marct/offline/authflow"
 	"github.com/brawaru/marct/utils"
 	"github.com/brawaru/marct/utils/pointers"
+	xboxAccount "github.com/brawaru/marct/xbox/account"
 	xboxAuthFlow "github.com/brawaru/marct/xbox/authflow"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/urfave/cli/v2"
@@ -34,10 +37,17 @@ var launchCommand = createCommand(&cli.Command{
 	}),
 	Flags: nil,
 	Action: func(ctx *cli.Context) error {
-		instance := ctx.Context.Value("workDir").(*launcher.Instance)
+		instance := ctx.Context.Value(instanceKey).(*launcher.Instance)
 
 		profiles, err := instance.ReadProfiles()
 		if err != nil {
+			if utils.DoesNotExist(err) {
+				err = errors.New(locales.Translate(&i18n.Message{
+					ID:    "command.launch.error.profiles-file-does-not-exist",
+					Other: "profiles file does not exist",
+				}))
+			}
+
 			return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
 				TemplateData: map[string]string{
 					"Error": err.Error(),
@@ -200,7 +210,7 @@ var launchCommand = createCommand(&cli.Command{
 		}
 
 		switch selectedAccount.Type {
-		case "xbox":
+		case xboxAccount.AccountType:
 			k, err := keyringOpenFlow(instance)
 
 			if err != nil {
@@ -221,7 +231,25 @@ var launchCommand = createCommand(&cli.Command{
 					},
 					DefaultMessage: &i18n.Message{
 						ID:    "command.launch.error.xbox-account-refresh-failed",
-						Other: "Cannot authorize your account: {{ .Error }}",
+						Other: "Cannot authorize your Xbox account: {{ .Error }}",
+					},
+				}), 1)
+			}
+		case offlineAccount.AccountType:
+			authFlow := offlineAuthFlow.CreateAuthFlow(&offlineAuthFlow.Options{
+				UsernameRequestHandler: offlineUsernamePrompt,
+			})
+
+			err := authFlow.RefreshAccount(selectedAccount)
+
+			if err != nil {
+				return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
+					TemplateData: map[string]string{
+						"Error": err.Error(),
+					},
+					DefaultMessage: &i18n.Message{
+						ID:    "command.launch.error.offline-account-refresh-failed",
+						Other: "Cannot authorize your offline account: {{ .Error }}",
 					},
 				}), 1)
 			}

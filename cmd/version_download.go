@@ -35,7 +35,7 @@ var versionInstallCommand = createCommand(&cli.Command{
 		Other: "<version ID>",
 	}),
 	Action: func(ctx *cli.Context) error {
-		workDir := ctx.Context.Value("workDir").(*launcher.Instance)
+		workDir := ctx.Context.Value(instanceKey).(*launcher.Instance)
 		versions, err := workDir.FetchVersions(false)
 
 		if err != nil {
@@ -57,16 +57,16 @@ var versionInstallCommand = createCommand(&cli.Command{
 			}), 1)
 		}
 
-		versionId := ctx.Args().First()
+		versionID := ctx.Args().First()
 
-		if versionId == "" {
+		if versionID == "" {
 			err := survey.AskOne(&survey.Select{
 				Message: locales.Translate(&i18n.Message{
 					ID:    "command.version-download.survey.version",
 					Other: "Version to download",
 				}),
 				Options: mapVersions(versions.Versions),
-			}, &versionId)
+			}, &versionID)
 
 			if err != nil {
 				return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
@@ -81,12 +81,12 @@ var versionInstallCommand = createCommand(&cli.Command{
 			}
 		}
 
-		versionDescriptor := versions.GetVersion(versionId)
+		versionDescriptor := versions.GetVersion(versionID)
 
 		if versionDescriptor == nil {
 			return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
 				TemplateData: map[string]string{
-					"VersionId": versionId,
+					"VersionId": versionID,
 				},
 				DefaultMessage: &i18n.Message{
 					ID:    "command.version-download.err.version-not-found",

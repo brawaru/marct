@@ -34,7 +34,7 @@ var profileRemoveCommand = createCommand(&cli.Command{
 		},
 	},
 	Action: func(ctx *cli.Context) error {
-		workDir := ctx.Context.Value("workDir").(*launcher.Instance)
+		workDir := ctx.Context.Value(instanceKey).(*launcher.Instance)
 
 		if ctx.NArg() < 1 {
 			return cli.Exit(locales.Translate(&i18n.Message{
@@ -50,7 +50,7 @@ var profileRemoveCommand = createCommand(&cli.Command{
 
 		profileID := ctx.Args().First()
 
-		profiles := ctx.Context.Value("profiles").(*launcher.Profiles)
+		profiles := ctx.Context.Value(profilesKey).(*launcher.Profiles)
 
 		profile, ok := profiles.Profiles[profileID]
 

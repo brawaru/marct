@@ -93,7 +93,7 @@ func validationFail(name string, err error) *ValidateError {
 }
 
 func ValidateFileHex(name string, hash hash.Hash, expected string) error {
-	var input []byte = nil
+	var input []byte
 
 	decodedSum, decodeErr := hex.DecodeString(expected)
 

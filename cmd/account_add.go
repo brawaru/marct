@@ -1,13 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"errors"
 
 	"github.com/99designs/keyring"
 	"github.com/brawaru/marct/launcher"
 	"github.com/brawaru/marct/launcher/accounts"
 	"github.com/brawaru/marct/locales"
-	"github.com/brawaru/marct/utils"
+	offlineAuthFlow "github.com/brawaru/marct/offline/authflow"
 	"github.com/brawaru/marct/xbox"
 	xboxAccount "github.com/brawaru/marct/xbox/account"
 	xboxAuthFlow "github.com/brawaru/marct/xbox/authflow"
@@ -26,12 +27,120 @@ var accountAddCommand = createCommand(&cli.Command{
 		Other: "Allows to set up a new account used to log in to the game.\n\n" +
 			"This command is a collection of subcommands for every account type.",
 	}),
-	Subcommands: []*cli.Command{accountAddMicrosoftCommand},
+	Subcommands: []*cli.Command{accountAddMicrosoftCommand, accountAddOfflineCommand},
+	Before: func(ctx *cli.Context) error {
+		instance := ctx.Context.Value(instanceKey).(*launcher.Instance)
+
+		store, err := instance.OpenAccountsStore()
+
+		if err != nil {
+			return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
+				TemplateData: map[string]string{
+					"Error": err.Error(),
+				},
+				DefaultMessage: &i18n.Message{
+					ID:    "command.accounts-add.open-store-error",
+					Other: "Cannot open accounts store: {{.Error}}",
+				},
+			}), 1)
+		}
+
+		ctx.Context = context.WithValue(ctx.Context, accountsStoreKey, store)
+
+		return nil
+	},
+
+	After: func(ctx *cli.Context) error {
+		store := ctx.Context.Value(accountsStoreKey).(*accounts.StoreFile)
+		err := store.Close()
+
+		if err != nil {
+			return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
+				TemplateData: map[string]string{
+					"Error": err.Error(),
+				},
+				DefaultMessage: &i18n.Message{
+					ID:    "command.accounts-add.close-store-error",
+					Other: "Cannot close accounts store: {{.Error}}",
+				},
+			}), 1)
+		}
+
+		return nil
+	},
 })
 
 func init() {
 	accountCommand.Subcommands = append(accountCommand.Subcommands, accountAddCommand)
 }
+
+var accountAddOfflineCommand = createCommand(&cli.Command{
+	Name: "offline",
+	Usage: locales.Translate(&i18n.Message{
+		ID:    "command.accounts-add-offline.usage",
+		Other: "A new offline account",
+	}),
+	Description: locales.Translate(&i18n.Message{
+		ID: "command.accounts-add-offline.description",
+		Other: "Allows to set up a new offline account that works even when no connection is available.\n" +
+			"This account, however, will not be usable to connect to the online-mode servers.",
+	}),
+	ArgsUsage: locales.Translate(&i18n.Message{
+		ID:    "command.accounts-add-offline.args-usage",
+		Other: "[username]",
+	}),
+	Action: func(ctx *cli.Context) error {
+		store := ctx.Context.Value(accountsStoreKey).(*accounts.StoreFile)
+
+		if ctx.NArg() > 1 {
+			return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
+				DefaultMessage: &i18n.Message{
+					ID:    "command.accounts-add-offline.too-many-args",
+					Other: "Too many arguments, expected only one username",
+				},
+			}), 1)
+		}
+
+		authFlow := offlineAuthFlow.CreateAuthFlow(&offlineAuthFlow.Options{
+			UsernameRequestHandler: func() (string, error) {
+				var username string
+
+				if ctx.NArg() == 0 {
+					return offlineUsernamePrompt()
+				}
+
+				username = ctx.Args().Get(0)
+
+				if !minecraftUsernameRegex.MatchString(username) {
+					return "", errors.New(locales.Translate(&i18n.Message{
+						ID:    "command.accounts-add-offline.invalid-username",
+						Other: "Invalid username supplied as an argument",
+					}))
+				}
+
+				return username, nil
+			},
+		})
+
+		account, err := authFlow.CreateAccount()
+
+		if err != nil {
+			return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
+				TemplateData: map[string]string{
+					"Error": err.Error(),
+				},
+				DefaultMessage: &i18n.Message{
+					ID:    "command.accounts-add-offline.create-account-error",
+					Other: "Cannot create account: {{.Error}}",
+				},
+			}), 1)
+		}
+
+		store.AddAccount(account)
+
+		return nil
+	},
+})
 
 var accountAddMicrosoftCommand = createCommand(&cli.Command{
 	Name:    "microsoft",
@@ -45,7 +154,7 @@ var accountAddMicrosoftCommand = createCommand(&cli.Command{
 		Other: "Allows to set up a new Microsoft account.",
 	}),
 	Action: func(ctx *cli.Context) error {
-		instance := ctx.Context.Value("workDir").(*launcher.Instance)
+		instance := ctx.Context.Value(instanceKey).(*launcher.Instance)
 
 		k, err := keyringOpenFlow(instance)
 		if err != nil {
@@ -83,21 +192,7 @@ var accountAddMicrosoftCommand = createCommand(&cli.Command{
 		//	}), 1)
 		//}
 
-		accountsStore, openErr := instance.OpenAccountsStore()
-
-		if openErr != nil {
-			return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
-				TemplateData: map[string]string{
-					"Error": openErr.Error(),
-				},
-				DefaultMessage: &i18n.Message{
-					ID:    "command.accounts-add-microsoft.error.store-open-error",
-					Other: "Failed to open the account store: {{ .Error }}",
-				},
-			}), 1)
-		}
-
-		defer utils.DClose(accountsStore)
+		accountsStore := ctx.Context.Value(accountsStoreKey).(*accounts.StoreFile)
 
 		account, accountCreateErr := authFlow.CreateAccount()
 

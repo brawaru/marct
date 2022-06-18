@@ -66,13 +66,13 @@ Generally Marct tries to stay compatible with Minecraft Launcher, but no warrant
 			}), 1)
 		}
 
-		ctx.Context = context.WithValue(ctx.Context, "workDirPath", workDirPath)
-		ctx.Context = context.WithValue(ctx.Context, "workDir", workDir)
+		ctx.Context = context.WithValue(ctx.Context, workDirKey, workDirPath)
+		ctx.Context = context.WithValue(ctx.Context, instanceKey, workDir)
 
 		return nil
 	},
 	After: func(ctx *cli.Context) error {
-		workDir := ctx.Context.Value("workDir").(*launcher.Instance)
+		workDir := ctx.Context.Value(instanceKey).(*launcher.Instance)
 
 		if err := workDir.Close(); err != nil {
 			return cli.Exit(locales.TranslateWith(&i18n.Message{
@@ -212,9 +212,9 @@ func init() {
 
 		if len(res) == 0 {
 			return key
-		} else {
-			return res
 		}
+
+		return res
 	}
 
 	cli.AppHelpTemplate = replacements.ReplaceAllStringFunc(helpFmt, replacer)

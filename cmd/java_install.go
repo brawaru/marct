@@ -3,14 +3,15 @@ package cmd
 import (
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/brawaru/marct/launcher"
 	"github.com/brawaru/marct/launcher/java"
 	"github.com/brawaru/marct/locales"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/urfave/cli/v2"
-	"sort"
-	"strings"
 )
 
 var javaInstallCommand = createCommand(&cli.Command{
@@ -28,7 +29,7 @@ var javaInstallCommand = createCommand(&cli.Command{
 		Other: "<type>",
 	}),
 	Action: func(ctx *cli.Context) error {
-		workDir := ctx.Context.Value("workDir").(*launcher.Instance)
+		workDir := ctx.Context.Value(instanceKey).(*launcher.Instance)
 
 		if ctx.IsSet("version") && ctx.IsSet("latest") {
 			return cli.Exit(locales.Translate(&i18n.Message{

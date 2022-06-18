@@ -18,7 +18,7 @@ var javaRefreshCommand = createCommand(&cli.Command{
 		Other: "Fetches fresh version of the Java Runtimes manifest from Mojang",
 	}),
 	Action: func(ctx *cli.Context) error {
-		workDir := ctx.Context.Value("workDir").(*launcher.Instance)
+		workDir := ctx.Context.Value(instanceKey).(*launcher.Instance)
 
 		if _, fetchErr := workDir.FetchJREs(true); fetchErr != nil {
 			return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{

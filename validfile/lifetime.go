@@ -28,7 +28,7 @@ func NotExpired(name string, ttl time.Duration) error {
 	stat, statErr := TryStat(name)
 
 	if statErr != nil {
-		return statErr
+		return fmt.Errorf("stat: %w", statErr)
 	}
 
 	modTime := stat.ModTime()

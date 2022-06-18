@@ -23,8 +23,8 @@ var profileSelectCommand = createCommand(&cli.Command{
 		Other: "[profile identifier]",
 	}),
 	Action: func(ctx *cli.Context) error {
-		workDir := ctx.Context.Value("workDir").(*launcher.Instance)
-		profiles := ctx.Context.Value("profiles").(*launcher.Profiles)
+		workDir := ctx.Context.Value(instanceKey).(*launcher.Instance)
+		profiles := ctx.Context.Value(profilesKey).(*launcher.Profiles)
 
 		var profileID string
 		if ctx.NArg() == 0 {

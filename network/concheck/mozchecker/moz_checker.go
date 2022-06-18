@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"io"
 	"net/http"
-	"time"
 
 	"github.com/brawaru/marct/network/concheck"
 )
@@ -26,11 +25,11 @@ func (c *mozChecker) Run() (concheck.CheckResult, error) {
 		case http.StatusFound:
 			fallthrough
 		case http.StatusTemporaryRedirect:
-			var redirectUrl = resp.Header.Get("Location")
+			var redirectURL = resp.Header.Get("Location")
 
 			return concheck.CheckResult{
 				Status:   concheck.StatusCaptive,
-				Redirect: &redirectUrl,
+				Redirect: &redirectURL,
 			}, nil
 		case http.StatusOK:
 			b, err := io.ReadAll(resp.Body)
@@ -45,13 +44,12 @@ func (c *mozChecker) Run() (concheck.CheckResult, error) {
 
 	return concheck.CheckResult{
 		Status: concheck.StatusUnknown,
-	}, err
+	}, nil
 }
 
 func NewMozChecker() concheck.Checker {
 	return &mozChecker{
 		client: http.Client{
-			Timeout: time.Second * 5,
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
 			},

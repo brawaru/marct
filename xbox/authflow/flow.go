@@ -24,7 +24,7 @@ type IntermediateState struct {
 
 func CreateAuthFlow(options *Options) *accounts.AuthFlow[IntermediateState] {
 	flow := accounts.AuthFlow[IntermediateState]{
-		AccountType: "xbox",
+		AccountType: xboxAccount.AccountType,
 	}
 
 	flow.AddStep(&ReadAccountProperties{})

@@ -1,6 +1,7 @@
 package network
 
 import (
+	"context"
 	"errors"
 	"math"
 	"net"
@@ -19,6 +20,7 @@ type RequestRetrierOptions struct {
 	RetryDelayMultiplier  float64          // Multiplier of retry delay for each retry. It cannot be less than one.
 	RetryDelayMax         time.Duration    // Maximum delay between retries. It cannot be less than RetryDelay.
 	ConnectionChecker     concheck.Checker // Network connection checker in case of network error. If nil, then connection is not checked.
+	Context               context.Context  // Context for the retrier.
 }
 
 type RetrierOption func(*RequestRetrierOptions)
@@ -48,6 +50,12 @@ func WithConstRetryDelay(delay time.Duration) RetrierOption {
 func WithConnectionChecker(checker concheck.Checker) RetrierOption {
 	return func(options *RequestRetrierOptions) {
 		options.ConnectionChecker = checker
+	}
+}
+
+func WithRetrierContext(ctx context.Context) RetrierOption {
+	return func(options *RequestRetrierOptions) {
+		options.Context = ctx
 	}
 }
 
@@ -81,6 +89,7 @@ func WithRetries(options ...RetrierOption) Option {
 		RetryDelayMultiplier:  2,
 		RetryDelayMax:         time.Minute,
 		ConnectionChecker:     mozchecker.NewMozChecker(),
+		Context:               nil,
 	}
 
 	for _, option := range options {
@@ -103,7 +112,12 @@ func WithRetries(options ...RetrierOption) Option {
 				if isNetErr && o.ConnectionChecker != nil {
 					netCheckStart := time.Now()
 
-					if err := concheck.WaitForConnection(req.Context(), o.ConnectionChecker); err != nil {
+					ctx := o.Context
+					if ctx == nil {
+						ctx = req.Context()
+					}
+
+					if err := concheck.WaitForConnection(ctx, o.ConnectionChecker); err != nil {
 						return err
 					}
 
@@ -117,7 +131,7 @@ func WithRetries(options ...RetrierOption) Option {
 					time.Sleep(delay)
 				}
 
-				retries += 1
+				retries++
 
 				return ErrRetryRequest
 			}

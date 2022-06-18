@@ -18,7 +18,7 @@ import (
 func (w *Instance) ExtractNatives(v Version) (string, error) {
 	np := filepath.Join(w.Path, "bin", utils.NewUUID())
 
-	if err := os.MkdirAll(np, 0644); err != nil {
+	if err := os.MkdirAll(np, 0777); err != nil {
 		return "", fmt.Errorf("cannot create bin directory: %w", err)
 	}
 

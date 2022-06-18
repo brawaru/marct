@@ -30,15 +30,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Edited by Brawaru to use a field type instead of name
 
-package j2n
-
-import (
-	"encoding/json"
-	"errors"
-	"fmt"
-	"reflect"
-)
-
 // Package j2n allows arbitrary JSON to be marshaled into structs. Any JSON
 // fields that are not marshaled directly into the fields of the struct are put
 // into a field with type UnknownFields
@@ -67,6 +58,14 @@ import (
 //  func (c Cat) MarshalJSON() ([]byte, error) {
 //  	return j2n.MarshalJSON(c.CatData)
 //  }
+package j2n
+
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+	"reflect"
+)
 
 type UnknownFields map[string]*json.RawMessage
 

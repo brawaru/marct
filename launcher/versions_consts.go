@@ -3,7 +3,7 @@ package launcher
 import "time"
 
 const (
-	versionsManifestURL = "https://launchermeta.mojang.com/mc/game/version_manifest_v2.json"
+	versionsManifestURL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
 )
 
 const (

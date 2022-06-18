@@ -25,7 +25,7 @@ var utilsVirtualizeCommand = createCommand(&cli.Command{
 		Other: "<index ID>",
 	}),
 	Action: func(ctx *cli.Context) error {
-		workDir := ctx.Context.Value("workDir").(*launcher.Instance)
+		workDir := ctx.Context.Value(instanceKey).(*launcher.Instance)
 
 		if ctx.NArg() != 1 {
 			return cli.Exit(locales.Translate(&i18n.Message{

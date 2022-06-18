@@ -11,6 +11,7 @@ import (
 
 	"github.com/brawaru/marct/network"
 	"github.com/brawaru/marct/utils"
+	"github.com/brawaru/marct/utils/osfile"
 	"github.com/brawaru/marct/utils/pointers"
 	"github.com/brawaru/marct/validfile"
 )
@@ -47,7 +48,7 @@ func (w *Instance) FetchVersions(force bool) (manifest *VersionsManifest, err er
 		}
 	}
 
-	expired := force || validfile.NotExpired(name, versionsManifestTTL) != nil
+	expired := force || (validfile.NotExpired(name, versionsManifestTTL) != nil)
 
 	if expired {
 		req, e := http.NewRequest(http.MethodGet, versionsManifestURL, nil)
@@ -69,9 +70,9 @@ func (w *Instance) FetchVersions(force bool) (manifest *VersionsManifest, err er
 			return
 		}
 
-		f, e := os.Open(name)
+		f, e := osfile.New(name)
 		if e != nil {
-			err = fmt.Errorf("open file: %w", e)
+			err = fmt.Errorf("create file: %w", e)
 			return
 		}
 
@@ -80,6 +81,11 @@ func (w *Instance) FetchVersions(force bool) (manifest *VersionsManifest, err er
 		_, e = io.Copy(f, resp.Body)
 		if e != nil {
 			err = fmt.Errorf("write response: %w", e)
+			return
+		}
+
+		if e := f.Sync(); e != nil {
+			err = fmt.Errorf("sync file: %w", e)
 			return
 		}
 

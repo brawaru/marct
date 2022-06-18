@@ -61,9 +61,18 @@ func Download(url string, dest string, options ...Option) (written int64, err er
 		return 0, createErr
 	}
 
-	defer file.Close()
+	defer utils.DClose(file)
 
-	return io.Copy(file, resp.Body)
+	if written, err = io.Copy(file, resp.Body); err != nil {
+		err = fmt.Errorf("write response: %w", err)
+		return
+	}
+
+	if err := file.Sync(); err != nil {
+		err = fmt.Errorf("sync file: %w", err)
+	}
+
+	return
 }
 
 // ErrorHandler handles errors that occur during the execution of an action. It may return an error if it needs a raise,
@@ -106,15 +115,15 @@ func PerformRequest(request *http.Request, options ...Option) (*http.Response, e
 				err := handler(reqErr)
 
 				if err != nil {
-					if errors.Is(reqErr, ErrRetryRequest) {
+					if errors.Is(err, ErrRetryRequest) {
 						continue
 					}
 
-					return nil, err
+					return resp, err
 				}
 			}
 
-			return nil, reqErr
+			return resp, reqErr
 		}
 
 		return resp, nil

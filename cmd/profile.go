@@ -2,11 +2,14 @@ package cmd
 
 import (
 	"context"
+
 	"github.com/brawaru/marct/launcher"
 	"github.com/brawaru/marct/locales"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/urfave/cli/v2"
 )
+
+const profilesKey ctxKey = "profiles"
 
 var profileCommand = createCommand(&cli.Command{
 	Name:    "profile",
@@ -20,7 +23,7 @@ var profileCommand = createCommand(&cli.Command{
 		Other: "This command allows you to manage game profiles",
 	}),
 	Before: func(ctx *cli.Context) error {
-		workDir := ctx.Context.Value("workDir").(*launcher.Instance)
+		workDir := ctx.Context.Value(instanceKey).(*launcher.Instance)
 
 		profiles, err := readProfilesOrExit(workDir)
 
@@ -28,7 +31,7 @@ var profileCommand = createCommand(&cli.Command{
 			return err
 		}
 
-		ctx.Context = context.WithValue(ctx.Context, "profiles", profiles)
+		ctx.Context = context.WithValue(ctx.Context, profilesKey, profiles)
 
 		return nil
 	},

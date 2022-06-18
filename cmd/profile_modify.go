@@ -85,7 +85,7 @@ var profileModifyCommand = createCommand(&cli.Command{
 			}), 1)
 		}
 
-		profiles := ctx.Context.Value("profiles").(*launcher.Profiles)
+		profiles := ctx.Context.Value(profilesKey).(*launcher.Profiles)
 
 		profile, profileExists := profiles.Profiles[profileID]
 

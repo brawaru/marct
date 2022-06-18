@@ -2,6 +2,11 @@ package cmd
 
 import (
 	"errors"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/brawaru/marct/launcher"
 	"github.com/brawaru/marct/locales"
@@ -9,10 +14,6 @@ import (
 	"github.com/brawaru/marct/utils"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/urfave/cli/v2"
-	"os"
-	"strconv"
-	"strings"
-	"time"
 )
 
 var msgSurveyFail = &i18n.Message{
@@ -103,8 +104,8 @@ var profileCreateCommand = createCommand(&cli.Command{
 		},
 	},
 	Action: func(ctx *cli.Context) error {
-		workDir := ctx.Context.Value("workDir").(*launcher.Instance)
-		profiles := ctx.Context.Value("profiles").(*launcher.Profiles)
+		workDir := ctx.Context.Value(instanceKey).(*launcher.Instance)
+		profiles := ctx.Context.Value(profilesKey).(*launcher.Profiles)
 
 		if ctx.NArg() > 1 {
 			return cli.Exit(locales.Translate(&i18n.Message{
@@ -452,17 +453,17 @@ func translateResolutionParseError(err error) string {
 					ID:    "command.profile-create.error.illegal-dimensions",
 					Other: "No dimensions provided",
 				})
-			} else {
-				return locales.TranslateUsing(&i18n.LocalizeConfig{
-					TemplateData: map[string]string{
-						"Count": strconv.Itoa(e.Count),
-					},
-					DefaultMessage: &i18n.Message{
-						ID:    "command.profile-create.error.illegal-dimensions",
-						Other: "Illegal number of dimensions provided - {{ .Count }}",
-					},
-				})
 			}
+
+			return locales.TranslateUsing(&i18n.LocalizeConfig{
+				TemplateData: map[string]string{
+					"Count": strconv.Itoa(e.Count),
+				},
+				DefaultMessage: &i18n.Message{
+					ID:    "command.profile-create.error.illegal-dimensions",
+					Other: "Illegal number of dimensions provided - {{ .Count }}",
+				},
+			})
 		}
 	}
 
@@ -496,19 +497,19 @@ func translateResolutionParseError(err error) string {
 						Other: "Invalid value for dimension {{ .Dimension }} - {{ .Value }}",
 					},
 				})
-			} else {
-				return locales.TranslateUsing(&i18n.LocalizeConfig{
-					TemplateData: map[string]string{
-						"Dimension": dimension,
-						"Value":     e.Value,
-						"Error":     subErr.Error(),
-					},
-					DefaultMessage: &i18n.Message{
-						ID:    "command.profile-create.error.illegal-dimension-value-error",
-						Other: "Invalid value for dimension {{ .Dimension }} - {{ .Value }}: {{ .Error }}",
-					},
-				})
 			}
+
+			return locales.TranslateUsing(&i18n.LocalizeConfig{
+				TemplateData: map[string]string{
+					"Dimension": dimension,
+					"Value":     e.Value,
+					"Error":     subErr.Error(),
+				},
+				DefaultMessage: &i18n.Message{
+					ID:    "command.profile-create.error.illegal-dimension-value-error",
+					Other: "Invalid value for dimension {{ .Dimension }} - {{ .Value }}: {{ .Error }}",
+				},
+			})
 		}
 	}
 

@@ -19,8 +19,8 @@ var profileSelectionClearCommand = createCommand(&cli.Command{
 		Other: "Allows to clear default profile used in management or launch commands",
 	}),
 	Action: func(ctx *cli.Context) error {
-		workDir := ctx.Context.Value("workDir").(*launcher.Instance)
-		profiles := ctx.Context.Value("profiles").(*launcher.Profiles)
+		workDir := ctx.Context.Value(instanceKey).(*launcher.Instance)
+		profiles := ctx.Context.Value(profilesKey).(*launcher.Profiles)
 
 		profiles.SelectedProfile = nil
 		err := workDir.WriteProfiles(profiles)

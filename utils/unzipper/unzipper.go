@@ -226,7 +226,7 @@ func (e *Unzipper) writeEntryDst(f *zip.File, dst string) error {
 		return fmt.Errorf("write %q: %w", dst, err)
 	}
 
-	return nil
+	return outputFile.Sync()
 }
 
 func (e *Unzipper) extractEntry(f *zip.File, dest string) error {

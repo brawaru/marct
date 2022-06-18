@@ -64,6 +64,8 @@ func retrieveByteBuf(u string, buf []byte) error {
 }
 
 func (d *Download) Validate() error {
+	fmt.Printf("validating %s\n", d.Destination)
+
 	for _, v := range d.Validators {
 		if err := v(); err != nil {
 			return err
@@ -110,9 +112,9 @@ func (d *Download) Download() error {
 	return nil
 }
 
-type DownloadOption func(*Download) error
+type Option func(*Download) error
 
-func WithURL(u *url.URL) DownloadOption {
+func WithURL(u *url.URL) Option {
 	return func(d *Download) error {
 		if u == nil {
 			return errors.New("url is nil")
@@ -123,7 +125,7 @@ func WithURL(u *url.URL) DownloadOption {
 	}
 }
 
-func WithSHA1(hash string) DownloadOption {
+func WithSHA1(hash string) Option {
 	return func(d *Download) error {
 		h, err := hex.DecodeString(hash)
 		if err != nil {
@@ -138,7 +140,7 @@ func WithSHA1(hash string) DownloadOption {
 	}
 }
 
-func WithRemoteSHA1() DownloadOption {
+func WithRemoteSHA1() Option {
 	return func(d *Download) error {
 		d.Validators = append(d.Validators, func() error {
 			r := make([]byte, 20)
@@ -157,7 +159,7 @@ func WithRemoteSHA1() DownloadOption {
 	}
 }
 
-func WithMD5(hash string) DownloadOption {
+func WithMD5(hash string) Option {
 	return func(d *Download) error {
 		h, err := hex.DecodeString(hash)
 		if err != nil {
@@ -172,7 +174,7 @@ func WithMD5(hash string) DownloadOption {
 	}
 }
 
-func WithRemoteMD5() DownloadOption {
+func WithRemoteMD5() Option {
 	return func(d *Download) error {
 		d.Validators = append(d.Validators, func() error {
 			r := make([]byte, 16)
@@ -191,7 +193,7 @@ func WithRemoteMD5() DownloadOption {
 	}
 }
 
-func NewURL(rawURL string, destination string, options ...DownloadOption) (*Download, error) {
+func NewURL(rawURL string, destination string, options ...Option) (*Download, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil {
 		return nil, fmt.Errorf("parse %q as url: %w", rawURL, err)
@@ -200,7 +202,7 @@ func NewURL(rawURL string, destination string, options ...DownloadOption) (*Down
 	return New(u, destination, options...)
 }
 
-func New(u *url.URL, destination string, options ...DownloadOption) (*Download, error) {
+func New(u *url.URL, destination string, options ...Option) (*Download, error) {
 	d := &Download{
 		DownloadURL: u,
 		Destination: destination,
@@ -215,7 +217,7 @@ func New(u *url.URL, destination string, options ...DownloadOption) (*Download, 
 	return d, nil
 }
 
-func FromURL(rawURL string, destination string, options ...DownloadOption) error {
+func FromURL(rawURL string, destination string, options ...Option) error {
 	d, err := NewURL(rawURL, destination, options...)
 	if err != nil {
 		return fmt.Errorf("new url %q: %w", rawURL, err)
@@ -223,7 +225,7 @@ func FromURL(rawURL string, destination string, options ...DownloadOption) error
 	return d.Download()
 }
 
-func From(u *url.URL, destination string, options ...DownloadOption) error {
+func From(u *url.URL, destination string, options ...Option) error {
 	d, err := New(u, destination, options...)
 	if err != nil {
 		return fmt.Errorf("create download: %w", err)

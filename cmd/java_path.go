@@ -1,14 +1,15 @@
 package cmd
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/brawaru/marct/launcher"
 	"github.com/brawaru/marct/locales"
 	"github.com/brawaru/marct/utils"
 	"github.com/brawaru/marct/validfile"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
 	"github.com/urfave/cli/v2"
-	"os"
-	"path/filepath"
 )
 
 var javaPathCommand = createCommand(&cli.Command{
@@ -26,7 +27,7 @@ var javaPathCommand = createCommand(&cli.Command{
 		Other: "<type>",
 	}),
 	Action: func(ctx *cli.Context) error {
-		workDir := ctx.Context.Value("workDir").(*launcher.Instance)
+		workDir := ctx.Context.Value(instanceKey).(*launcher.Instance)
 
 		if ctx.NArg() != 1 {
 			return cli.Exit(locales.Translate(&i18n.Message{
