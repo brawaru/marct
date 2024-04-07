@@ -7,11 +7,14 @@ import (
 	"strings"
 )
 
-const mavenCoordinatesSplitter = ":"
-const mavenStandardPackaging = "jar"
-const filenameSplitter = "-"
-const extensionSplitter = "."
-const defaultCharacter = "-"
+const (
+	// Character responsible for separating parts of Maven coordinates
+	CoordinatesSeparator = ":"
+	// Standard packaging used by the Maven if none specified in coordinates
+	DefaultPackaging = "jar"
+	// Character responsible for separating the artefact name and the version
+	FilenameSeparator = "-"
+)
 
 type Coordinates struct {
 	GroupId      string
@@ -27,16 +30,16 @@ func (c *Coordinates) FullVersion() string {
 		return c.Version
 	}
 
-	return strings.Join([]string{c.Version, filenameSplitter, c.VersionLabel}, "")
+	return strings.Join([]string{c.Version, FilenameSeparator, c.VersionLabel}, "")
 }
 
 func (c *Coordinates) FileBaseName() string {
 	fileName := c.ArtifactId
 
-	fileName += filenameSplitter + c.FullVersion()
+	fileName += FilenameSeparator + c.FullVersion()
 
 	if len(c.Classifier) > 0 {
-		fileName += filenameSplitter
+		fileName += FilenameSeparator
 		fileName += c.Classifier
 	}
 
@@ -47,8 +50,7 @@ func (c *Coordinates) FileName() string {
 	fileName := c.FileBaseName()
 
 	if len(c.Packaging) > 0 {
-		fileName += extensionSplitter
-		fileName += c.Packaging
+		fileName += "." + c.Packaging
 	}
 
 	return fileName
@@ -119,29 +121,29 @@ func (c *Coordinates) String() string {
 
 	str += c.GroupId
 
-	str += mavenCoordinatesSplitter
+	str += CoordinatesSeparator
 	str += c.ArtifactId
 
-	str += mavenCoordinatesSplitter
+	str += CoordinatesSeparator
 	str += c.FullVersion()
 
 	isClassifier := len(c.Classifier) > 0
 
-	if c.Packaging != mavenStandardPackaging || isClassifier {
-		str += mavenCoordinatesSplitter
-		str += c.Packaging
+	if isClassifier {
+		str += CoordinatesSeparator
+		str += c.Classifier
+	}
 
-		if isClassifier {
-			str += mavenCoordinatesSplitter
-			str += c.Classifier
-		}
+	if c.Packaging != DefaultPackaging {
+		str += CoordinatesSeparator
+		str += c.Packaging
 	}
 
 	return str
 }
 
 func NewCoordinates(coordinates string) (*Coordinates, error) {
-	parts := strings.Split(coordinates, mavenCoordinatesSplitter)
+	parts := strings.Split(coordinates, CoordinatesSeparator)
 
 	numOfParts := len(parts)
 
@@ -158,7 +160,7 @@ func NewCoordinates(coordinates string) (*Coordinates, error) {
 	versionPart := parts[2]
 
 	{
-		splitIndex := strings.LastIndex(versionPart, filenameSplitter)
+		splitIndex := strings.LastIndex(versionPart, FilenameSeparator)
 		if splitIndex < 0 {
 			coords.Version = versionPart
 		} else {
@@ -169,13 +171,13 @@ func NewCoordinates(coordinates string) (*Coordinates, error) {
 	}
 
 	if numOfParts > 3 {
-		coords.Packaging = parts[3]
-	} else {
-		coords.Packaging = mavenStandardPackaging
+		coords.Classifier = parts[3]
 	}
 
 	if numOfParts > 4 {
-		coords.Classifier = parts[4]
+		coords.Packaging = parts[4]
+	} else {
+		coords.Packaging = DefaultPackaging
 	}
 
 	return &coords, nil

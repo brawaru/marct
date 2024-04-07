@@ -216,7 +216,7 @@ var accountAddMicrosoftCommand = createCommand(&cli.Command{
 			}), 1)
 		}
 
-		accountsStore.Store.Accounts[account.ID] = account
+		accountsStore.Store.Accounts[account.ID] = &*&account
 
 		if storeSaveErr := accountsStore.Save(); storeSaveErr != nil {
 			return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{

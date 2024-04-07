@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 
@@ -23,44 +24,32 @@ type Download struct {
 	Validators  []Validator // Validators to check the downloaded artifact.
 }
 
-func retrieveByteBuf(u string, buf []byte) error {
-	if buf == nil {
-		panic("buf is nil")
-	}
-
-	expectedLen := int64(len(buf))
-
-	r, err := http.NewRequest(http.MethodGet, u, nil)
+func retrieveRemoteHash(retrievalUrl string) ([]byte, error) {
+	req, err := http.NewRequest(http.MethodGet, retrievalUrl, nil)
 	if err != nil {
-		return fmt.Errorf("create request: %w", err)
+		return nil, fmt.Errorf("create request: %w", err)
 	}
 
-	resp, reqErr := network.PerformRequest(r, network.WithRetries())
+	resp, reqErr := network.PerformRequest(req, network.WithRetries())
 	if reqErr != nil {
-		return fmt.Errorf("request: %w", reqErr)
+		return nil, fmt.Errorf("request: %w", reqErr)
 	}
 
 	defer utils.DClose(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("request not successful, got %v %s", resp.StatusCode, resp.Status)
+		return nil, fmt.Errorf("request not successful, got %v %s", resp.StatusCode, resp.Status)
 	}
 
-	if resp.ContentLength != expectedLen && resp.ContentLength != -1 {
-		return errors.New("unexpected length")
+	buf, decodeErr := io.ReadAll(hex.NewDecoder(resp.Body))
+
+	if decodeErr != nil {
+		return nil, fmt.Errorf("hash decode err: %w", decodeErr)
 	}
 
-	readBytes, readErr := resp.Body.Read(buf)
+	fmt.Printf("hash retrieval %v: %x\n", retrievalUrl, buf)
 
-	if readErr != nil {
-		return readErr
-	}
-
-	if int64(readBytes) != expectedLen {
-		return errors.New("expected to read 20 bytes")
-	}
-
-	return nil
+	return buf, nil
 }
 
 func (d *Download) Validate() error {
@@ -133,7 +122,10 @@ func WithSHA1(hash string) Option {
 		}
 
 		d.Validators = append(d.Validators, func() error {
-			return validfile.ValidateFile(d.Destination, sha1.New(), h)
+			if validateErr := validfile.ValidateFile(d.Destination, sha1.New(), h); validateErr != nil {
+				return fmt.Errorf("validate with sha1: %w", validateErr)
+			}
+			return nil
 		})
 
 		return nil
@@ -143,16 +135,19 @@ func WithSHA1(hash string) Option {
 func WithRemoteSHA1() Option {
 	return func(d *Download) error {
 		d.Validators = append(d.Validators, func() error {
-			r := make([]byte, 20)
-
 			u := *d.DownloadURL
 			u.Path += ".sha1"
 
-			if retrievalErr := retrieveByteBuf(u.String(), r); retrievalErr != nil {
-				return retrievalErr
+			remoteHash, retrievalErr := retrieveRemoteHash(u.String())
+			if retrievalErr != nil {
+				return fmt.Errorf("retrieve remote sha1 from %s: %w", u.String(), retrievalErr)
 			}
 
-			return validfile.ValidateFile(d.Destination, sha1.New(), r)
+			if validateErr := validfile.ValidateFile(d.Destination, sha1.New(), remoteHash); validateErr != nil {
+				return fmt.Errorf("validate with remote sha1: %w", validateErr)
+			}
+
+			return nil
 		})
 
 		return nil
@@ -167,7 +162,10 @@ func WithMD5(hash string) Option {
 		}
 
 		d.Validators = append(d.Validators, func() error {
-			return validfile.ValidateFile(d.Destination, md5.New(), h)
+			if validateErr := validfile.ValidateFile(d.Destination, md5.New(), h); validateErr != nil {
+				return fmt.Errorf("validate with md5: %w", validateErr)
+			}
+			return nil
 		})
 
 		return nil
@@ -177,16 +175,19 @@ func WithMD5(hash string) Option {
 func WithRemoteMD5() Option {
 	return func(d *Download) error {
 		d.Validators = append(d.Validators, func() error {
-			r := make([]byte, 16)
+			retrievalUrl := *d.DownloadURL
+			retrievalUrl.Path += ".md5"
 
-			u := *d.DownloadURL
-			u.Path += ".md5"
-
-			if err := retrieveByteBuf(u.String(), r); err != nil {
-				return fmt.Errorf("retrieve %s: %w", u.String(), err)
+			remoteHash, err := retrieveRemoteHash(retrievalUrl.String())
+			if err != nil {
+				return fmt.Errorf("retrieve remote md5 from %s: %w", retrievalUrl.String(), err)
 			}
 
-			return validfile.ValidateFile(d.Destination, md5.New(), r)
+			if validateErr := validfile.ValidateFile(d.Destination, md5.New(), remoteHash); validateErr != nil {
+				return fmt.Errorf("verify with remote md5: %w", validateErr)
+			}
+
+			return nil
 		})
 
 		return nil

@@ -7,10 +7,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/AlecAivazis/survey/v2"
 	"github.com/brawaru/marct/launcher"
 	"github.com/brawaru/marct/locales"
-	minecraftAccount "github.com/brawaru/marct/minecraft/account"
 	offlineAccount "github.com/brawaru/marct/offline/account"
 	offlineAuthFlow "github.com/brawaru/marct/offline/authflow"
 	"github.com/brawaru/marct/utils"
@@ -145,68 +143,11 @@ var launchCommand = createCommand(&cli.Command{
 		selectedAccount := accountsStore.GetSelectedAccount()
 
 		if selectedAccount == nil {
-			var options []string
-			optionsMappings := make(map[string]string)
-			for accountID, account := range accountsStore.Accounts {
-				option := ""
-				properties, err := minecraftAccount.ReadProperties(&account)
-				if err != nil {
-					option = locales.TranslateUsing(&i18n.LocalizeConfig{
-						TemplateData: map[string]string{
-							"ID": accountID,
-						},
-						DefaultMessage: &i18n.Message{
-							ID:    "command.launch.unknown-account",
-							Other: "Unknown account ({{ .ID }})",
-						},
-					})
-				} else {
-					option = properties.Username
-				}
-
-				options = append(options, option)
-				optionsMappings[option] = accountID
+			if newSelection, selectionErr := SelectAccountFlow(accountsStore.Accounts); selectionErr != nil {
+				return selectionErr
+			} else {
+				selectedAccount = newSelection
 			}
-
-			var selectedID string
-			if err := survey.AskOne(&survey.Select{
-				Message: locales.Translate(&i18n.Message{
-					ID:    "command.launch.select-account",
-					Other: "Select account to launch:",
-				}),
-				Options: options,
-			}, &selectedID, survey.WithValidator(func(ans interface{}) error {
-				i, ok := ans.(survey.OptionAnswer)
-				if !ok {
-					return errors.New(locales.Translate(&i18n.Message{
-						ID:    "command.launch.error.survey-validation-invalid-type",
-						Other: "Invalid response type.",
-					}))
-				}
-
-				_, ok = optionsMappings[i.Value]
-				if !ok {
-					return errors.New(locales.Translate(&i18n.Message{
-						ID:    "command.launch.error.invalid-selection",
-						Other: "Invalid selection. Please select one of the options.",
-					}))
-				}
-
-				return nil
-			})); err != nil {
-				return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
-					TemplateData: map[string]string{
-						"Error": err.Error(),
-					},
-					DefaultMessage: &i18n.Message{
-						ID:    "command.launch.error.account-select-failed",
-						Other: "Failed to read your selection: {{ .Error }}",
-					},
-				}), 1)
-			}
-
-			selection := accountsStore.Accounts[optionsMappings[selectedID]]
-			selectedAccount = &selection
 		}
 
 		switch selectedAccount.Type {

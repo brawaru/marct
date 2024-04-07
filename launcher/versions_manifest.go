@@ -12,7 +12,6 @@ import (
 	"github.com/brawaru/marct/network"
 	"github.com/brawaru/marct/utils"
 	"github.com/brawaru/marct/utils/osfile"
-	"github.com/brawaru/marct/utils/pointers"
 	"github.com/brawaru/marct/validfile"
 )
 
@@ -43,59 +42,58 @@ func (w *Instance) FetchVersions(force bool) (manifest *VersionsManifest, err er
 
 	if !force {
 		if v, ok := w.GetTempValue(manifestCacheKey).(ManifestCache); ok && time.Since(v.CachedAt) < versionsManifestTTL {
-			manifest = pointers.Ref(v.CachedManifest)
+			manifest = &v.CachedManifest
 			return
 		}
 	}
 
 	expired := force || (validfile.NotExpired(name, versionsManifestTTL) != nil)
 
-	if expired {
-		req, e := http.NewRequest(http.MethodGet, versionsManifestURL, nil)
-		if e != nil {
-			err = fmt.Errorf("create request: %w", e)
-			return
-		}
-
-		resp, e := network.PerformRequest(req, network.WithRetries())
-		if e != nil {
-			err = fmt.Errorf("send request: %w", e)
-			return
-		}
-
-		defer utils.DClose(resp.Body)
-
-		if e := json.NewDecoder(resp.Body).Decode(&manifest); e != nil {
-			err = fmt.Errorf("decode response: %w", e)
-			return
-		}
-
-		f, e := osfile.New(name)
-		if e != nil {
-			err = fmt.Errorf("create file: %w", e)
-			return
-		}
-
-		defer utils.DClose(f)
-
-		_, e = io.Copy(f, resp.Body)
-		if e != nil {
-			err = fmt.Errorf("write response: %w", e)
-			return
-		}
-
-		if e := f.Sync(); e != nil {
-			err = fmt.Errorf("sync file: %w", e)
-			return
-		}
-
-		w.SetTempValue(manifestCacheKey, ManifestCache{
-			CachedManifest: *manifest,
-			CachedAt:       time.Now(),
-		})
-	} else {
+	if !expired {
 		return w.ReadVersions()
 	}
+
+	req, rawErr := http.NewRequest(http.MethodGet, versionsManifestURL, nil)
+	if rawErr != nil {
+		err = fmt.Errorf("create request: %w", rawErr)
+		return
+	}
+
+	resp, rawErr := network.PerformRequest(req, network.WithRetries())
+	if rawErr != nil {
+		err = fmt.Errorf("send request: %w", rawErr)
+		return
+	}
+
+	defer utils.DClose(resp.Body)
+
+	manifestFile, rawErr := osfile.New(name)
+	if rawErr != nil {
+		err = fmt.Errorf("create file: %w", rawErr)
+		return
+	}
+
+	defer utils.DClose(manifestFile)
+
+	bodyReadWriter := io.TeeReader(resp.Body, manifestFile)
+
+	if rawErr := json.NewDecoder(bodyReadWriter).Decode(&manifest); rawErr != nil {
+		err = fmt.Errorf("decode response: %w", rawErr)
+		_ = manifestFile.Close()
+		_ = os.Remove(versionsManifestPath)
+		return
+	}
+
+	_, rawErr = io.Copy(manifestFile, resp.Body)
+	if rawErr != nil {
+		err = fmt.Errorf("write response: %w", rawErr)
+		return
+	}
+
+	w.SetTempValue(manifestCacheKey, ManifestCache{
+		CachedManifest: *manifest,
+		CachedAt:       time.Now(),
+	})
 
 	return
 }

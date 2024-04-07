@@ -5,11 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"os"
+
 	"github.com/brawaru/marct/utils"
 	"github.com/brawaru/marct/validfile"
 	"github.com/rogpeppe/go-internal/lockedfile"
-	"io"
-	"os"
 )
 
 type Account struct {
@@ -21,12 +22,12 @@ type Account struct {
 }
 
 type Store struct {
-	Accounts        map[string]Account `json:"accounts"`                  // Accounts mapped by their IDs.
-	SelectedAccount string             `json:"selectedAccount,omitempty"` // ID of the selected account.
+	Accounts        map[string]*Account `json:"accounts"`                  // Accounts mapped by their IDs.
+	SelectedAccount string              `json:"selectedAccount,omitempty"` // ID of the selected account.
 }
 
 func (s *Store) AddAccount(account Account) {
-	s.Accounts[account.ID] = account
+	s.Accounts[account.ID] = &account
 }
 
 func (s *Store) RemoveAccount(account Account) {
@@ -41,8 +42,14 @@ func (s *Store) GetSelectedAccount() *Account {
 	if s.SelectedAccount == "" {
 		return nil
 	}
-	a := s.Accounts[s.SelectedAccount]
-	return &a
+
+	for _, account := range s.Accounts {
+		if account.ID == s.SelectedAccount {
+			return account
+		}
+	}
+
+	return nil
 }
 
 type StoreFile struct {
@@ -124,7 +131,7 @@ func OpenStoreFile(filepath string) (*StoreFile, error) {
 	} else {
 		// initialise empty store if file did not exist before
 		s = Store{
-			Accounts:        map[string]Account{},
+			Accounts:        map[string]*Account{},
 			SelectedAccount: "",
 		}
 	}

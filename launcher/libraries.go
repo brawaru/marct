@@ -21,7 +21,7 @@ func (w *Instance) LibrariesPath() string {
 
 // LibraryPath returns expected path for the library to be placed in.
 func (w *Instance) LibraryPath(coords maven.Coordinates) string {
-	return filepath.Join(w.Path, coords.Path(os.PathSeparator))
+	return filepath.Join(w.LibrariesPath(), coords.Path(os.PathSeparator))
 }
 
 func hasEmptyPath(u url.URL) bool {
@@ -111,7 +111,7 @@ func (w *Instance) DownloadLibraries(libraries []Library) error {
 					}))
 				}
 			} else {
-				return dlErr
+				return fmt.Errorf("download libraries: %w", dlErr)
 			}
 
 			return nil

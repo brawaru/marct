@@ -79,7 +79,7 @@ var accountRemoveCommand = createCommand(&cli.Command{
 		if !ctx.Bool("force") {
 			var answer bool
 
-			properties, err := minecraftAccount.ReadProperties(&account)
+			properties, err := minecraftAccount.ReadProperties(account)
 
 			if err != nil {
 				return cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
@@ -103,7 +103,7 @@ var accountRemoveCommand = createCommand(&cli.Command{
 						Other: "Are you sure you want to remove account {{.AccountID}}?",
 					},
 				}),
-				Default: false,
+				Default: true,
 			}, &answer)
 
 			if err != nil {

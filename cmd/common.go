@@ -8,7 +8,9 @@ import (
 	"github.com/99designs/keyring"
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/brawaru/marct/launcher"
+	"github.com/brawaru/marct/launcher/accounts"
 	"github.com/brawaru/marct/locales"
+	minecraftAccount "github.com/brawaru/marct/minecraft/account"
 	"github.com/brawaru/marct/utils/slices"
 	"github.com/brawaru/marct/xbox"
 	"github.com/nicksnyder/go-i18n/v2/i18n"
@@ -221,27 +223,91 @@ func xboxDeviceAuthPrompt(devAuth xbox.DeviceAuthResponse) error {
 	return nil
 }
 
-type selectAccountFlowOptions struct {
+func SelectAccountFlow(accounts map[string]*accounts.Account) (*accounts.Account, error) {
+	var options []string
+	optionsMappings := make(map[string]string)
+	for accountID, account := range accounts {
+		option := ""
+		properties, err := minecraftAccount.ReadProperties(account)
+		if err != nil {
+			option = locales.TranslateUsing(&i18n.LocalizeConfig{
+				TemplateData: map[string]string{
+					"ID": accountID,
+				},
+				DefaultMessage: &i18n.Message{
+					ID:    "cli.prompts.select-account.unknown-account",
+					Other: "Unknown account ({{ .ID }})",
+				},
+			})
+		} else {
+			option = properties.Username
+		}
+
+		options = append(options, option)
+		optionsMappings[option] = accountID
+	}
+
+	var selectedOption string
+	if err := survey.AskOne(&survey.Select{
+		Message: locales.Translate(&i18n.Message{
+			ID:    "cli.prompts.select-account.prompt",
+			Other: "Select account to launch:",
+		}),
+		Options: options,
+	}, &selectedOption, survey.WithValidator(func(ans interface{}) error {
+		i, ok := ans.(survey.OptionAnswer)
+		if !ok {
+			return errors.New(locales.Translate(&i18n.Message{
+				ID:    "cli.prompts.select-account.error.survey-validation-invalid-type",
+				Other: "Invalid response type.",
+			}))
+		}
+
+		_, ok = optionsMappings[i.Value]
+		if !ok {
+			return errors.New(locales.Translate(&i18n.Message{
+				ID:    "cli.prompts.select-account.error.invalid-selection",
+				Other: "Invalid selection. Please select one of the options.",
+			}))
+		}
+
+		return nil
+	})); err != nil {
+		return nil, cli.Exit(locales.TranslateUsing(&i18n.LocalizeConfig{
+			TemplateData: map[string]string{
+				"Error": err.Error(),
+			},
+			DefaultMessage: &i18n.Message{
+				ID:    "cli.prompts.select-account.error.account-select-failed",
+				Other: "Failed to read your selection: {{ .Error }}",
+			},
+		}), 1)
+	}
+
+	return accounts[optionsMappings[selectedOption]], nil
+}
+
+type selectProfileFlowOptions struct {
 	SkipSelected bool    // Whether to skip the selected account.
 	Message      *string // Message to display. If empty, the default "Select profile" message will be used.
 }
 
-type SelectProfileFlowOption func(*selectAccountFlowOptions)
+type SelectProfileFlowOption func(*selectProfileFlowOptions)
 
 func WithoutSelected() SelectProfileFlowOption {
-	return func(o *selectAccountFlowOptions) {
+	return func(o *selectProfileFlowOptions) {
 		o.SkipSelected = true
 	}
 }
 
 func WithMessage(v string) SelectProfileFlowOption {
-	return func(o *selectAccountFlowOptions) {
+	return func(o *selectProfileFlowOptions) {
 		o.Message = &v
 	}
 }
 
 func SelectProfileFlow(p *launcher.Profiles, options ...SelectProfileFlowOption) (*launcher.Profile, error) {
-	var o selectAccountFlowOptions
+	var o selectProfileFlowOptions
 	for _, opt := range options {
 		opt(&o)
 	}
@@ -256,7 +322,7 @@ func SelectProfileFlow(p *launcher.Profiles, options ...SelectProfileFlowOption)
 				}, " "),
 			},
 			DefaultMessage: &i18n.Message{
-				ID:    "cli.flows.select-account.error.no-profiles",
+				ID:    "cli.flows.select-profile.error.no-profiles",
 				Other: "No profiles found. Create your first profile using `{{ .Command }}`.",
 			},
 		}), 1)
@@ -368,7 +434,6 @@ func SelectProfileFlow(p *launcher.Profiles, options ...SelectProfileFlowOption)
 // - must not have spaces
 // - A-Z, a-z, 0-9
 // - the only allowed special character is _
-//
 var minecraftUsernameRegex = regexp.MustCompile(`^[a-zA-Z0-9_]{3,16}$`)
 
 func offlineUsernamePrompt() (string, error) {

@@ -2,8 +2,9 @@ package maven
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestParsing(t *testing.T) {
@@ -16,7 +17,7 @@ func TestParsing(t *testing.T) {
 			Packaging:    "jar",
 			Classifier:   "",
 		},
-		"id.group:artifact-id:1.0.0-SNAPSHOT:ext:classifier": {
+		"id.group:artifact-id:1.0.0-SNAPSHOT:classifier:ext": {
 			GroupId:      "id.group",
 			ArtifactId:   "artifact-id",
 			Version:      "1.0.0",
@@ -49,7 +50,7 @@ func TestNames(t *testing.T) {
 			BaseName: "artifact-1.0.0",
 			Path:     "id/group/artifact/1.0.0/artifact-1.0.0.jar",
 		},
-		"id.group:artifact-id:1.0.0-SNAPSHOT:ext:classifier": {
+		"id.group:artifact-id:1.0.0-SNAPSHOT:classifier:ext": {
 			FullName: "artifact-id-1.0.0-SNAPSHOT-classifier.ext",
 			BaseName: "artifact-id-1.0.0-SNAPSHOT-classifier",
 			Path:     "id/group/artifact-id/1.0.0-SNAPSHOT/artifact-id-1.0.0-SNAPSHOT-classifier.ext",
@@ -79,9 +80,9 @@ func TestNames(t *testing.T) {
 func TestConversionPersistence(t *testing.T) {
 	expectations := map[string]string{
 		"id.group:artifact:1.0.0":                            "",
-		"id.group:artifact-id:1.0.0-SNAPSHOT:ext:classifier": "",
-		"id.group:artifact:1.0.0:jar":                        "id.group:artifact:1.0.0",
-		"id.group:artifact:1.0.0:jar:classifier":             "",
+		"id.group:artifact-id:1.0.0-SNAPSHOT:classifier:ext": "",
+		"id.group:artifact:1.0.0:classifier:jar":             "id.group:artifact:1.0.0:classifier",
+		"id.group:artifact:1.0.0:classifier":                 "",
 	}
 
 	for coordinates, expectation := range expectations {
@@ -112,8 +113,8 @@ func TestJSON(t *testing.T) {
 
 	input := `{
 	"A": "id.group:artifact:1.0.0",
-	"B": "id.group:artifact-id:1.0.0-SNAPSHOT:ext:classifier",
-	"C": "id.group:artifact:1.0.0:jar:classifier"
+	"B": "id.group:artifact-id:1.0.0-SNAPSHOT:classifier:ext",
+	"C": "id.group:artifact:1.0.0:classifier"
 }`
 
 	expectation := JSONTestValue{
@@ -133,7 +134,7 @@ func TestJSON(t *testing.T) {
 			Packaging:    "ext",
 			Classifier:   "classifier",
 		},
-		C: "id.group:artifact:1.0.0:jar:classifier",
+		C: "id.group:artifact:1.0.0:classifier",
 	}
 
 	var res JSONTestValue

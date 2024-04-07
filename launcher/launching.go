@@ -191,7 +191,14 @@ func (w *Instance) Launch(version Version, options LaunchOptions) (*LaunchResult
 		if l.Rules != nil && !l.Rules.Matches() {
 			continue
 		}
-		lp := filepath.Join(ld, l.Coordinates.Path(os.PathSeparator))
+
+		var lp string
+		if l.Downloads != nil && l.Downloads.Artifact != nil {
+			lp = filepath.Join(ld, l.Downloads.Artifact.Path)
+		} else {
+			lp = filepath.Join(ld, l.Coordinates.Path(os.PathSeparator))
+		}
+
 		if !strings.HasPrefix(lp, ld+string(os.PathSeparator)) {
 			return nil, fmt.Errorf("illegal library path: %q", lp)
 		}
